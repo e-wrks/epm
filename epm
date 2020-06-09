@@ -76,7 +76,7 @@
                 EPM_PATH="${EPM_HOME}/edh-universe/bin"
             fi
         else
-            warning_message "There is no EPM home effective for directory [$(pwd)]"
+            warning_message "No effective EPM home for directory [$(pwd)]"
             return 1
         fi
 
@@ -733,7 +733,6 @@ update"
             with | w)
                 shift 1
                 [ $# -lt 1 ] && with_usage
-                MODIFYING_EPM_HOME=true
                 locate_epm_home || die "No workable EPM home"
                 cd "${EPM_HOME}"
                 case $1 in
@@ -762,8 +761,7 @@ update"
                 ;;
             rm)
                 shift 1
-                MODIFYING_EPM_HOME=true
-                locate_epm_home || die "No writable EPM home to remove packages"
+                locate_epm_home || die "No modifiable EPM home to remove packages"
                 cd "${EPM_HOME}"
 
                 PKGS2RM=""

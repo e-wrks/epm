@@ -421,10 +421,10 @@ FLAGS:
                     done
             )
             if [ -d "${pkg_dir}" ]; then
-                # implant `--overwrite-policy=always --installdir=${EPM_HOME}/edh-universe/bin`
-                # to `cabal install` cmdl, magically !
                 if [ "$1" == "cabal" -a "$2" == "install" ]; then
                     shift 2
+                    # implant `--overwrite-policy=always --installdir=${EPM_HOME}/edh-universe/bin`
+                    # to `cabal install` cmdl, magically !
                     set -- cabal install --overwrite-policy=always --installdir=${EPM_HOME}/edh-universe/bin "$@"
                 elif [ $# -lt 1 ]; then
                     set -- bash
@@ -448,6 +448,13 @@ FLAGS:
 
     # Run command with all effective EPM home's bin on $PATH
     epm_exec() {
+        if [ "$1" == "cabal" -a "$2" == "install" ]; then
+            shift 2
+            # implant `--overwrite-policy=always --installdir=${EPM_HOME}/edh-universe/bin`
+            # to `cabal install` cmdl, magically !
+            set -- cabal install --overwrite-policy=always --installdir=${EPM_HOME}/edh-universe/bin "$@"
+        fi
+
         export PATH="${EPM_PATH}":"${PATH}"
         exec $*
         red_message "You've been kicked back."

@@ -31,7 +31,8 @@
         (
             [ -w "${EPM_HOME}/edh_modules" ] || edo mkdir "${EPM_HOME}/edh_modules"
             [ -w "${EPM_HOME}/edh-universe/bin" ] || edo mkdir -p "${EPM_HOME}/edh-universe/bin"
-        ) || die "Can NOT create local directories in [${EPM_HOME}]"
+            update_stack_packages
+        ) || die "Can NOT create EPM home artifacts in [${EPM_HOME}]"
     }
 
     locate_epm_home() {
@@ -81,6 +82,31 @@
 
         export EPM_PATH EPM_HOME
     }
+
+    update_stack_packages() { (
+        cd "${EPM_HOME}"
+        (
+            if [ -f "stack.yaml" ]; then
+                while IFS= read -r line; do
+                    [ "${line}" == '## FOLLOWING CONTENTS GONNA BE OVERWRITTEN BY EPM ##' ] && break
+                    echo "$line"
+                done <"stack.yaml"
+            else
+                echo ''
+                echo "# Please change the resolver and other Stack settings per your needs"
+                echo 'resolver: lts-15.15'
+            fi
+            echo ''
+            echo '## FOLLOWING CONTENTS GONNA BE OVERWRITTEN BY EPM ##'
+            echo ''
+            echo "local-bin-path: edh-universe/bin"
+            echo 'packages:'
+            find edh-universe -name \*.cabal | while read -r fn; do
+                echo " - $(dirname "${fn}")"
+            done
+        ) >"_new_stack.yaml"
+        edo mv -f "_new_stack.yaml" "stack.yaml"
+    ); }
 
     # whether we tends to modify an EPM home
     MODIFYING_EPM_HOME=false
@@ -305,7 +331,7 @@ FLAGS:
     # @DESCRIPTION:
     # List local packages installed by epm
     list_pkgs() {
-        find edh-universe -name edh_modules | while read pkg_dir1; do
+        find edh-universe -name edh_modules | while read -r pkg_dir1; do
             pkg_dir="${pkg_dir1%/edh_modules}"
             pkg_id="${pkg_dir#edh-universe/}"
             (
@@ -321,7 +347,7 @@ FLAGS:
                 fi
                 if ${SHOW_MODULES}; then
                     echo " - Modules:"
-                    find edh_modules -type f | while read modu; do
+                    find edh_modules -type f | while read -r modu; do
                         echo "    ${modu}"
                     done
                 fi
@@ -348,7 +374,7 @@ FLAGS:
             set -- bash
         fi
 
-        pkg_dir=$(find edh-universe -name edh_modules | while read pkg_dir1; do
+        pkg_dir=$(find edh-universe -name edh_modules | while read -r pkg_dir1; do
             pkg_dir="${pkg_dir1%/edh_modules}"
             pkg_id="${pkg_dir#edh-universe/}"
             [ "${pkg_id%/${pkg}}" != "${pkg_id}" ] && echo "${pkg_dir}"
@@ -385,7 +411,7 @@ FLAGS:
 
     # Update local packages installed by epm
     update_pkgs() {
-        find edh-universe -name edh_modules | while read pkg_dir1; do
+        find edh-universe -name edh_modules | while read -r pkg_dir1; do
             pkg_dir="${pkg_dir1%/edh_modules}"
             pkg_id="${pkg_dir#edh-universe/}"
 
@@ -398,7 +424,7 @@ FLAGS:
             ) || die "Failed updating package ${pkg_id}"
 
             (
-                find edh_modules -type l | while read modu_root; do
+                find edh_modules -type l | while read -r modu_root; do
                     mr_path=$(readlink "${modu_root}")
                     if [ "${mr_path#../${pkg_dir1}/}" != "${mr_path}" ]; then
                         edo rm "${modu_root}" || die "Failed unlink ${modu_root}"
@@ -432,7 +458,7 @@ FLAGS:
     # @DESCRIPTION:
     # Removes the specified packages installed by epm.
     rm_pkgs() {
-        find edh-universe -name edh_modules | while read pkg_dir1; do
+        find edh-universe -name edh_modules | while read -r pkg_dir1; do
             pkg_dir="${pkg_dir1%/edh_modules}"
             pkg_id="${pkg_dir#edh-universe/}"
             edo pushd "${pkg_dir}" >/dev/null
@@ -444,7 +470,7 @@ FLAGS:
                 if [ "${pkg_id%/${name2rm}}" != "${pkg_id}" ]; then
                     if ask_for_confirmation "Remove [${pkg_id}] from ${pkg_repo} ?"; then
                         status_message "Removing ${pkg_dir} ..."
-                        find edh_modules -type l | while read modu_root; do
+                        find edh_modules -type l | while read -r modu_root; do
                             mr_path=$(readlink "${modu_root}")
                             if [ "${mr_path#../${pkg_dir1}/}" != "${mr_path}" ]; then
                                 edo rm "${modu_root}" || die "Failed unlink ${modu_root}"
@@ -455,6 +481,7 @@ FLAGS:
                 fi
             done
         done
+        update_stack_packages
     }
 
     ###########################
@@ -675,6 +702,7 @@ update"
                         ;;
                     esac
                 done
+                update_stack_packages
                 break
                 ;;
             list | l)

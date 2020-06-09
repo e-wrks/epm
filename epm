@@ -31,6 +31,7 @@
         (
             [ -w "${EPM_HOME}/edh_modules" ] || edo mkdir "${EPM_HOME}/edh_modules"
             [ -w "${EPM_HOME}/edh-universe/bin" ] || edo mkdir -p "${EPM_HOME}/edh-universe/bin"
+            update_cabal_packages
             update_stack_packages
         ) || die "Can NOT create EPM home artifacts in [${EPM_HOME}]"
     }
@@ -84,6 +85,31 @@
 
         export EPM_PATH EPM_HOME
     }
+
+    update_cabal_packages() { (
+        cd "${EPM_HOME}"
+        (
+            if [ -f "cabal.project" ]; then
+                while IFS= read -r line; do
+                    [ "${line}" == '-- FOLLOWING CONTENTS GONNA BE OVERWRITTEN BY EPM --' ] && break
+                    echo "$line"
+                done <"cabal.project"
+            else
+                echo ''
+                echo "-- Please change Cabal project settings per your needs"
+                echo ''
+            fi
+            echo '-- FOLLOWING CONTENTS GONNA BE OVERWRITTEN BY EPM --'
+            echo ''
+            echo 'packages:'
+            find edh-universe -name \*.cabal |
+                fgrep -v '/dist-newstyle/' | fgrep -v '/.stack-work/' |
+                while read -r fn; do
+                    echo "  $(dirname "${fn}")"
+                done
+        ) >"_new_cabal.project"
+        edo mv -f "_new_cabal.project" "cabal.project"
+    ); }
 
     update_stack_packages() { (
         cd "${EPM_HOME}"
@@ -510,6 +536,7 @@ FLAGS:
                     fi
                 done
             done
+        update_cabal_packages
         update_stack_packages
     ); }
 
@@ -737,6 +764,7 @@ update"
                         ;;
                     esac
                 done
+                update_cabal_packages
                 update_stack_packages
                 break
                 ;;

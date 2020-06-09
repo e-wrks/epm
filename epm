@@ -14,11 +14,11 @@
 VERSION=0.0.1
 
 
-# local package directory
-PKG_DIR="$(pwd)"
+# local packages root directory
+PKG_ROOT="$(pwd)"
 
 # Default base URL for short package names
-BASE_URL="https://github.com/e-wrks"
+BASE_URL=${EPM_REPO_BASE:-"https://github.com/e-wrks"}
 
 SHOW_REPO=false
 SHOW_BRANCH=false
@@ -63,13 +63,15 @@ FLAGS:
     -v, --verbose         Enable verbose output
     -h, --help            Prints help information
     -V, --version         Prints version information
-    -b, --base <url>      URL prefix for short package names
+    -B, --base <URL>      URL prefix for upstream package repositories
+                    default:  ${BASE_URL}
+                    environment variable EPM_REPO_BASE overrides above
 
 SUBCOMMANDS:
-    install            Install packages
-    list               List packages
-    update             Pull tracked branch for all packages
-    rm                 Remove installed packages
+    install | i           Install packages
+    list    | l           List packages
+    update  | u           Pull tracked branch for all packages
+    rm                    Remove installed packages
 ")
     exit 1
 }
@@ -83,17 +85,23 @@ install_usage() {
 Install packages as specified
 
 USAGE:
-    ${SCRIPT} install [FLAGS] [NAME|URL] [NAME|URL] ...
+    ${SCRIPT} install [FLAGS] [ -b <branch> ] [ <PKGn> | <URLn> ] [ -B <URL1> <PKG1> <PKG2> ... ] [ -B <URL2> <PKG3> ... ]
 
 FLAGS:
     -h, --help            Prints help information
-    -f, --force           Overwrite already existing installation
-    -b, --base <url>      URL prefix for short package names
 
 ARGS:
-    [NAME|URL]    E.g. \"nedh\" or \"sedh\" or
-                     a url like \"https://github.com/e-wrks/hasdb\"
-                     (default: edh)
+    -b <branch>           Branch to checkout and track
+                only applies to the immediately following package
+                default: master
+    -B, --base <URL>      URL prefix for upstream package repositories
+                    default:  ${BASE_URL}
+                    environment variable EPM_REPO_BASE overrides above
+    <PKGn>                E.g. nedh or sedh
+    <URLn>                E.g. \"https://github.com/e-wrks/hasdb\"
+
+EXAMPLES:
+    epm install -b 0.3 edh -b 0.1 nedh -B https://git.corporate.lan -b golden esb/cord -b qa esb/mart
 ")
     exit 1
 }
@@ -107,14 +115,13 @@ rm_usage() {
 Remove the specified packages installed by epm
 
 USAGE:
-    ${SCRIPT} rm [FLAGS] [NAME] [NAME] ...
+    ${SCRIPT} rm [FLAGS] <PKG1> [ <PKG2> ... ]
 
 FLAGS:
     -h, --help       Prints help information
-    -f, --force      Don't prompt user
 
 ARGS:
-    <NAME>        E.g. \"nedh\" or \"sedh\"
+    <PKGn>           E.g. \"nedh\" or \"sedh\"
 ")
     exit 1
 }
@@ -145,29 +152,30 @@ FLAGS:
     #--[ Subcommand install ]--#
     ############################
 
-# @FUNCTION: install_pkgs
-# @USAGE: [NAME1] [NAME2] ...
+# @FUNCTION: install_pkg
+# @USAGE: <PKG>
 # @DESCRIPTION:
-# Installs the specified packages
-install_pkgs() {
-    if [ $# -lt 1 ]; then
-        install_pkgs edh
-    else
-        for pkg in "$@"; do
-            install_pkg "${pkg}"
-        done
-    fi
-}
-
+# Installs the specified package
 install_pkg() {
-    FULL_URL="${BASE_URL}/$1"
+    if [ "${1#*://}" == "$1" ]; then
+        FULL_URL="${BASE_URL}/$1"
+    else
+        FULL_URL="$1"
+    fi
     PKG_ID=${FULL_URL#*://*/}
     PKG_DIR=edh-universe/"${PKG_ID}"
 
     status_message "Installing $1 to ${PKG_DIR} ..."
     (
-        test -d "${PKG_DIR}" || edo git clone "${FULL_URL}" "${PKG_DIR}"
+        if [ -d "${PKG_DIR}" ]; then
+            edo pushd "${PKG_DIR}" >/dev/null
+            edo git checkout -f -B "${BRANCH:-master}"
+            edo popd >/dev/null
+        else
+            edo git clone -b "${BRANCH:-master}" "${FULL_URL}" "${PKG_DIR}"
+        fi
     ) || die "Failed cloning ${FULL_URL} to ${PKG_DIR}"
+
     (
         edo pushd edh_modules >/dev/null
         for a in ../"${PKG_DIR}"/edh_modules/*; do
@@ -177,6 +185,13 @@ install_pkg() {
         done
         edo popd >/dev/null
     ) || die "Failed linking Edh module artifacts"
+
+    (
+        edo pushd "${PKG_DIR}" >/dev/null
+        status_message "Building Haskell components for ${PKG_ID} ..."
+        edo cabal build all
+        edo popd >/dev/null
+    ) || red_message "Failed building Haskell components for ${PKG_ID}"
 
     status_message "Installed $1 ."
 }
@@ -194,9 +209,9 @@ list_pkgs() {
     find edh-universe -name edh_modules | while read PKG_DIR1; do
         PKG_DIR="${PKG_DIR1%/edh_modules}"
         PKG_ID="${PKG_DIR#edh-universe/}"
-        echo "${PKG_ID}"
         (
             edo pushd "${PKG_DIR}" >/dev/null
+            echo "${PKG_ID} - $(git describe --all --dirty --broken)"
             if ${SHOW_REPO}; then
                 echo " - From: $(
                     git config remote.$(git config branch.$(git branch --format '%(refname:short)').remote).url
@@ -260,7 +275,6 @@ rm_pkgs() {
                     find edh_modules -type l | while read MODU_ROOT; do
                         MR_PATH=$(readlink "${MODU_ROOT}")
                         if [ "${MR_PATH#../${PKG_DIR1}/}" != "${MR_PATH}" ]; then
-                            echo "${MR_PATH#../${PKG_DIR1}/}  vs  ${MR_PATH}"
                             edo rm "${MODU_ROOT}" || die "Failed unlink ${MODU_ROOT}"
                         fi
                     done
@@ -432,7 +446,7 @@ while [ $# -gt 0 ] ; do
     -V|--version)
         printf "%s\\n" "${VERSION}"
         exit 0;;
-    -b|--base)
+    -B|--base)
         if [ $# -lt 3 ] ; then
             usage
         fi
@@ -452,7 +466,7 @@ update"
 
        (
         test -w edh_modules || edo mkdir edh_modules
-        test -w edh-universe || edo mkdir edh-universe
+        test -w edh-universe/bin || edo mkdir -p edh-universe/bin
        ) || die "Can NOT create local directories in $(pwd)"
 
        # check for available commands
@@ -465,23 +479,24 @@ update"
        case $1 in
        install|i)
            shift 1
-           PKGS2INST=""
            while [ $# -gt 0 ] ; do
                case $1 in
                    -h|--help) install_usage;;
-                   -f|--force) FORCE=true
-                      shift 1;;
-                   -b|--base)
+                   -B|--base)
                         if [ $# -lt 2 ] ; then
                             install_usage
                         fi
                         BASE_URL="$2"
                         shift 2;;
-                   *) PKGS2INST="${PKGS2INST} $1"
-                      shift 1;;
+                   -b)
+                        BRANCH="$1"
+                        shift 1;;
+                   *) install_pkg "$1"
+                        # -b has to be specified per pkg
+                        unset BRANCH
+                        shift 1;;
                esac
            done
-           install_pkgs ${PKGS2INST}
            break;;
        list|l)
            shift 1

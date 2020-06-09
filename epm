@@ -158,8 +158,8 @@ SUBCOMMANDS:
     list       | l        List homes and packages
     update     | u        Pull upstream changes of packages from tracked branches
     with       | w        Run command within the directory of a package
-    run | exec | x        Run command with all effective EPM home's bin on $$PATH
-    rm                    Remove installed packages
+    run | exec | x        Run command with all effective EPM home's bin on \$PATH
+    rm                    Remove specified package(s) from nearest EPM home
 ")
         exit 1
     }
@@ -222,7 +222,7 @@ ARGS:
     # and exit the script with status code 1.
     epm_exec_usage() {
         (echo >&2 "epm-run
-Run command with all effective EPM home's bin on $$PATH
+Run command with all effective EPM home's bin on \$PATH
 
 USAGE:
     ${SCRIPT} run [FLAGS] <CMD> [ <ARG1> <ARG2> ... ]
@@ -470,7 +470,7 @@ FLAGS:
     # @FUNCTION: rm_pkgs
     # @USAGE: <ghcversion>
     # @DESCRIPTION:
-    # Removes the specified packages installed by epm.
+    # Removes the specified package(s) installed by epm.
     rm_pkgs() { (
         cd "${EPM_HOME}"
         find edh-universe -name edh_modules | while read -r pkg_dir1; do
@@ -483,7 +483,8 @@ FLAGS:
             edo popd >/dev/null
             for name2rm in "$@"; do
                 if [ "${pkg_id%/${name2rm}}" != "${pkg_id}" ]; then
-                    if ask_for_confirmation "Remove [${pkg_id}] from ${pkg_repo} ?"; then
+                    warning_message "Package [${pkg_id}] has upstream ${pkg_repo}"
+                    if ask_for_confirmation "Remove it from [${EPM_HOME}] ?"; then
                         status_message "Removing ${pkg_dir} ..."
                         find edh_modules -type l | while read -r modu_root; do
                             mr_path=$(readlink "${modu_root}")

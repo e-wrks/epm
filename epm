@@ -59,14 +59,16 @@
         EPM_PATH=$(locate_home_at "$(pwd)")
         EPM_HOME="${EPM_PATH%%/edh-universe/bin*}"
 
-        if [ -x "${EPM_HOME}" ]; then
-            if [ -w "${EPM_HOME}" ]; then
+        if [ -e "${EPM_HOME}" ]; then
+            if [ ! -d "${EPM_HOME}" ]; then
+                die "Not a directory: ${EPM_HOME}"
+            elif [ -w "${EPM_HOME}" ]; then
                 status_message " >> Managing packages at EPM home [${EPM_HOME}] <<"
             elif ${MODIFYING_EPM_HOME}; then
                 red_message " >> Readonly EPM home at [${EPM_HOME}] <<"
                 return 1
             fi
-        elif ${MODIFYING_EPM_HOME}; then
+        elif ${CREATING_EPM_HOME}; then
             EPM_HOME=$(pwd)
             warning_message "Creating new EPM home at [${EPM_HOME}] ..."
             init_epm_home
@@ -108,7 +110,9 @@
         edo mv -f "_new_stack.yaml" "stack.yaml"
     ); }
 
-    # whether we tends to modify an EPM home
+    # whether we tend to create an EPM home
+    CREATING_EPM_HOME=false
+    # whether we tend to modify an EPM home
     MODIFYING_EPM_HOME=false
 
     # @VARIABLE: VERBOSE
@@ -330,7 +334,8 @@ FLAGS:
     # @USAGE: <tool> <raw-format> <criteria>
     # @DESCRIPTION:
     # List local packages installed by epm
-    list_pkgs() {
+    list_pkgs() { (
+        cd "${EPM_HOME}"
         find edh-universe -name edh_modules | while read -r pkg_dir1; do
             pkg_dir="${pkg_dir1%/edh_modules}"
             pkg_id="${pkg_dir#edh-universe/}"
@@ -354,7 +359,7 @@ FLAGS:
                 edo popd >/dev/null
             ) || die "Failed browsing package ${pkg_id}"
         done
-    }
+    ); }
 
     #########################
     #--[ Subcommand with ]--#
@@ -410,7 +415,8 @@ FLAGS:
     #########################
 
     # Update local packages installed by epm
-    update_pkgs() {
+    update_pkgs() { (
+        cd "${EPM_HOME}"
         find edh-universe -name edh_modules | while read -r pkg_dir1; do
             pkg_dir="${pkg_dir1%/edh_modules}"
             pkg_id="${pkg_dir#edh-universe/}"
@@ -447,7 +453,7 @@ FLAGS:
                 edo popd >/dev/null
             ) || red_message "Failed building Haskell components for ${pkg_id}"
         done
-    }
+    ); }
 
     #######################
     #--[ Subcommand rm ]--#
@@ -457,7 +463,8 @@ FLAGS:
     # @USAGE: <ghcversion>
     # @DESCRIPTION:
     # Removes the specified packages installed by epm.
-    rm_pkgs() {
+    rm_pkgs() { (
+        cd "${EPM_HOME}"
         find edh-universe -name edh_modules | while read -r pkg_dir1; do
             pkg_dir="${pkg_dir1%/edh_modules}"
             pkg_id="${pkg_dir#edh-universe/}"
@@ -482,7 +489,7 @@ FLAGS:
             done
         done
         update_stack_packages
-    }
+    ); }
 
     ###########################
     #--[ Utility functions ]--#
@@ -671,12 +678,15 @@ update"
 
             case $1 in
             init)
+                CREATING_EPM_HOME=true
+                MODIFYING_EPM_HOME=true
                 EPM_HOME=$(pwd)
                 init_epm_home
                 break
                 ;;
             install | i)
                 shift 1
+                CREATING_EPM_HOME=true
                 MODIFYING_EPM_HOME=true
                 locate_epm_home || die "No writable EPM home to install packages"
                 cd "${EPM_HOME}"
@@ -708,7 +718,6 @@ update"
             list | l)
                 shift 1
                 locate_epm_home || die "No EPM home to show"
-                cd "${EPM_HOME}"
                 while [ $# -gt 0 ]; do
                     case $1 in
                     -h | --help) list_usage ;;
@@ -733,8 +742,8 @@ update"
             with | w)
                 shift 1
                 [ $# -lt 1 ] && with_usage
+                MODIFYING_EPM_HOME=true
                 locate_epm_home || die "No workable EPM home"
-                cd "${EPM_HOME}"
                 case $1 in
                 -h | --help) with_usage ;;
                 esac
@@ -744,7 +753,6 @@ update"
             run | exec | x)
                 shift 1
                 locate_epm_home || die "No EPM home for the run"
-                cd "${EPM_HOME}"
                 [ $# -lt 1 ] && epm_exec_usage
                 case $1 in
                 -h | --help) epm_exec_usage ;;
@@ -754,15 +762,15 @@ update"
                 ;;
             update | u)
                 MODIFYING_EPM_HOME=true
-                locate_epm_home || die "No writable EPM home for packages"
+                locate_epm_home || die "No modifiable EPM home to update"
                 cd "${EPM_HOME}"
                 update_pkgs
                 break
                 ;;
             rm)
                 shift 1
+                MODIFYING_EPM_HOME=true
                 locate_epm_home || die "No modifiable EPM home to remove packages"
-                cd "${EPM_HOME}"
 
                 PKGS2RM=""
                 while [ $# -gt 0 ]; do

@@ -12,15 +12,8 @@
     # Version of this script.
     VERSION=0.0.1
 
-    # local packages root directory
-    EPM_ROOT="$(pwd)"
-
     # Default base URL for short package names
     BASE_URL=${EPM_REPO_BASE:-"https://github.com/e-wrks"}
-
-    SHOW_REPO=false
-    SHOW_BRANCH=false
-    SHOW_MODULES=false
 
     # @VARIABLE: SCRIPT
     # @DESCRIPTION:
@@ -28,6 +21,69 @@
     # shell name if this script is sourced, so
     # only rely on this for echos and trivial things.
     SCRIPT="$(basename "$0")"
+
+    # the nearest home directory for local packages
+    EPM_HOME="Yet-Discovered"
+    # all effective epm home's bin directory separated by colon (:)
+    EPM_PATH=""
+
+    init_epm_home() {
+        (
+            [ -w "${EPM_HOME}/edh_modules" ] || edo mkdir "${EPM_HOME}/edh_modules"
+            [ -w "${EPM_HOME}/edh-universe/bin" ] || edo mkdir -p "${EPM_HOME}/edh-universe/bin"
+        ) || die "Can NOT create local directories in [${EPM_HOME}]"
+    }
+
+    locate_epm_home() {
+
+        locate_home_at() { (
+            parent_dir=$(dirname "$1")
+            if [ "${parent_dir}" == "$1" ]; then
+                ppath=""
+            else
+                ppath=$(locate_home_at "${parent_dir}")
+            fi
+            if [ -x "$1"/edh-universe/bin ]; then
+                if [ -n "${ppath}" ]; then
+                    echo "$1"/edh-universe/bin:"${ppath}"
+                else
+                    echo "$1"/edh-universe/bin
+                fi
+            else
+                echo "${ppath}"
+            fi
+
+        ); }
+
+        EPM_PATH=$(locate_home_at "$(pwd)")
+        EPM_HOME="${EPM_PATH%%/edh-universe/bin*}"
+
+        if [ -x "${EPM_HOME}" ]; then
+            if [ -w "${EPM_HOME}" ]; then
+                status_message " >> Managing packages at EPM home [${EPM_HOME}] <<"
+            elif ${MODIFYING_EPM_HOME}; then
+                red_message " >> Readonly EPM home at [${EPM_HOME}] <<"
+                return 1
+            fi
+        elif ${MODIFYING_EPM_HOME}; then
+            EPM_HOME=$(pwd)
+            warning_message "Creating new EPM home at [${EPM_HOME}] ..."
+            init_epm_home
+            if [ -n "${EPM_PATH}" ]; then
+                EPM_PATH="${EPM_HOME}/edh-universe/bin:${EPM_PATH}"
+            else
+                EPM_PATH="${EPM_HOME}/edh-universe/bin"
+            fi
+        else
+            warning_message "There is no EPM home effective for directory [$(pwd)]"
+            return 1
+        fi
+
+        export EPM_PATH EPM_HOME
+    }
+
+    # whether we tends to modify an EPM home
+    MODIFYING_EPM_HOME=false
 
     # @VARIABLE: VERBOSE
     # @DESCRIPTION:
@@ -39,6 +95,11 @@
     # Whether to force installation and overwrite files.
     FORCE=false
 
+    # options in listing subcommand
+    SHOW_REPO=false
+    SHOW_BRANCH=false
+    SHOW_MODULES=false
+
     ####################
     #--[ Print Help ]--#
     ####################
@@ -48,8 +109,7 @@
     # Print the help message for 'epm' to STDERR
     # and exit the script with status code 1.
     usage() {
-        (echo >&2 "epm ${VERSION}
-Edh Package Manager
+        (echo >&2 "epm ${VERSION} >> Edh Package Manager <<
 
 USAGE:
     ${SCRIPT} [FLAGS] <SUBCOMMAND>
@@ -63,10 +123,12 @@ FLAGS:
                     environment variable EPM_REPO_BASE overrides above
 
 SUBCOMMANDS:
-    install | i           Install packages
-    list    | l           List packages
-    update  | u           Pull tracked branch for all packages
-    with    | w           Run command within the directory of a package
+    init                  Initialize current working directory as an EPM home
+    install    | i        Install new, or change branches of existing packages 
+    list       | l        List homes and packages
+    update     | u        Pull upstream changes of packages from tracked branches
+    with       | w        Run command within the directory of a package
+    run | exec | x        Run command with all effective EPM home's bin on $$PATH
     rm                    Remove installed packages
 ")
         exit 1
@@ -111,14 +173,35 @@ EXAMPLES:
 Run command within the directory of a package
 
 USAGE:
-    ${SCRIPT} with [FLAGS] <PKG> <CMD> [ <ARG1> <ARG2> ... ]
+    ${SCRIPT} with [FLAGS] <PKG> [ <CMD> [ <ARG1> <ARG2> ... ] ]
 
 FLAGS:
     -h, --help              Prints help information
 
 ARGS:
     <PKG>                   E.g. \"nedh\" or \"sedh\"
-    <CMD> [ <ARGn> ... ]    E.g. cabal run edhi or bash
+    <CMD> [ <ARGn> ... ]    E.g. \"cabal run edhi\" or \"caban install edhi\"
+                         default: bash
+")
+        exit 1
+    }
+
+    # @FUNCTION: epm_exec_usage
+    # @DESCRIPTION:
+    # Print the help message for 'epm run' to STDERR
+    # and exit the script with status code 1.
+    epm_exec_usage() {
+        (echo >&2 "epm-run
+Run command with all effective EPM home's bin on $$PATH
+
+USAGE:
+    ${SCRIPT} run [FLAGS] <CMD> [ <ARG1> <ARG2> ... ]
+
+FLAGS:
+    -h, --help              Prints help information
+
+ARGS:
+    <CMD> [ <ARGn> ... ]    E.g. edhi or bash
 ")
         exit 1
     }
@@ -245,8 +328,6 @@ FLAGS:
                 edo popd >/dev/null
             ) || die "Failed browsing package ${pkg_id}"
         done
-
-        unset pkg_dir1 pkg_dir pkg_id modu
     }
 
     #########################
@@ -258,26 +339,25 @@ FLAGS:
         pkg="$1"
         shift 1
 
-        # implant `--overwrite-policy=always --installdir=${EPM_ROOT}/edh-universe/bin`
+        # implant `--overwrite-policy=always --installdir=${EPM_HOME}/edh-universe/bin`
         # to `cabal install` cmdl, magically !
         if [ "$1" == "cabal" -a "$2" == "install" ]; then
             shift 2
-            set -- cabal install --overwrite-policy=always --installdir=${EPM_ROOT}/edh-universe/bin "$@"
+            set -- cabal install --overwrite-policy=always --installdir=${EPM_HOME}/edh-universe/bin "$@"
+        elif [ $# -lt 1 ]; then
+            set -- bash
         fi
 
         pkg_dir=$(find edh-universe -name edh_modules | while read pkg_dir1; do
             pkg_dir="${pkg_dir1%/edh_modules}"
             pkg_id="${pkg_dir#edh-universe/}"
-            if [ "${pkg_id%/${pkg}}" != "${pkg_id}" ]; then
-                echo "${pkg_dir}"
-            fi
+            [ "${pkg_id%/${pkg}}" != "${pkg_id}" ] && echo "${pkg_dir}"
         done)
-        if [ -n "${pkg_dir}" ]; then
+        if [ -d "${pkg_dir}" ]; then
             pkg_id="${pkg_dir#edh-universe/}"
             status_message " >> With Edh package [${pkg_id}] <<"
             edo pushd "${pkg_dir}" >/dev/null
-            export EPM_ROOT
-            export PATH="${EPM_ROOT}"/edh-universe/bin:"${PATH}"
+            export PATH="${EPM_PATH}":"${PATH}"
             exec $*
             edo popd >/dev/null
             red_message "You've been kicked back."
@@ -285,7 +365,18 @@ FLAGS:
             warning_message "No such package: ${pkg}"
         fi
 
-        unset pkg pkg_dir1 pkg_dir pkg_id
+        unset pkg pkg_dir pkg_id
+    }
+
+    #########################
+    #--[ Subcommand run ]--#
+    #########################
+
+    # Run command with all effective EPM home's bin on $PATH
+    epm_exec() {
+        export PATH="${EPM_PATH}":"${PATH}"
+        exec $*
+        red_message "You've been kicked back."
     }
 
     #########################
@@ -323,9 +414,13 @@ FLAGS:
                 edo popd >/dev/null
             ) || die "Failed re-linking Edh module artifacts"
 
+            (
+                edo pushd "${pkg_dir}" >/dev/null
+                status_message "Building Haskell components for ${pkg_id} ..."
+                edo cabal build all
+                edo popd >/dev/null
+            ) || red_message "Failed building Haskell components for ${pkg_id}"
         done
-
-        unset pkg_dir1 pkg_dir pkg_id modu_root mr_path a b
     }
 
     #######################
@@ -360,8 +455,6 @@ FLAGS:
                 fi
             done
         done
-
-        unset pkg_dir1 pkg_dir pkg_id pkg_repo name2rm modu_root mr_path
     }
 
     ###########################
@@ -462,7 +555,7 @@ FLAGS:
     check_required_commands() {
         _missing_commands=
 
-        for com in "$@" basename dirname git; do
+        for com in "$@" basename dirname find git; do
             command_exists "${com}" || {
                 _missing_commands="${_missing_commands} ${com}"
             }
@@ -540,12 +633,7 @@ update"
             usage
             ;;
 
-        *) ## startup tasks ##
-
-            (
-                [ -w edh_modules ] || edo mkdir edh_modules
-                [ -w edh-universe/bin ] || edo mkdir -p edh-universe/bin
-            ) || die "Can NOT create local directories in ${EPM_ROOT}"
+        *)
 
             # check for available commands
             missing_commands="$(check_required_commands)"
@@ -555,8 +643,16 @@ update"
             unset missing_commands
 
             case $1 in
+            init)
+                EPM_HOME=$(pwd)
+                init_epm_home
+                break
+                ;;
             install | i)
                 shift 1
+                MODIFYING_EPM_HOME=true
+                locate_epm_home || die "No writable EPM home to install packages"
+                cd "${EPM_HOME}"
                 while [ $# -gt 0 ]; do
                     case $1 in
                     -h | --help) install_usage ;;
@@ -583,6 +679,8 @@ update"
                 ;;
             list | l)
                 shift 1
+                locate_epm_home || die "No EPM home to show"
+                cd "${EPM_HOME}"
                 while [ $# -gt 0 ]; do
                     case $1 in
                     -h | --help) list_usage ;;
@@ -606,19 +704,40 @@ update"
                 ;;
             with | w)
                 shift 1
-                [ $# -lt 2 ] && with_usage
+                [ $# -lt 1 ] && with_usage
+                MODIFYING_EPM_HOME=true
+                locate_epm_home || die "No workable EPM home"
+                cd "${EPM_HOME}"
                 case $1 in
                 -h | --help) with_usage ;;
                 esac
                 with_pkg "$@"
                 break
                 ;;
+            run | exec | x)
+                shift 1
+                locate_epm_home || die "No EPM home for the run"
+                cd "${EPM_HOME}"
+                [ $# -lt 1 ] && epm_exec_usage
+                case $1 in
+                -h | --help) epm_exec_usage ;;
+                esac
+                epm_exec "$@"
+                break
+                ;;
             update | u)
+                MODIFYING_EPM_HOME=true
+                locate_epm_home || die "No writable EPM home for packages"
+                cd "${EPM_HOME}"
                 update_pkgs
                 break
                 ;;
             rm)
                 shift 1
+                MODIFYING_EPM_HOME=true
+                locate_epm_home || die "No writable EPM home to remove packages"
+                cd "${EPM_HOME}"
+
                 PKGS2RM=""
                 while [ $# -gt 0 ]; do
                     case $1 in

@@ -722,8 +722,11 @@ update"
                         shift 2
                         ;;
                     -b)
-                        BRANCH="$1"
-                        shift 1
+                        if [ $# -lt 2 ]; then
+                            install_usage
+                        fi
+                        BRANCH="$2"
+                        shift 2
                         ;;
                     *)
                         install_pkg "$1"

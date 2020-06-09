@@ -97,15 +97,17 @@
                 echo ''
                 echo "# Please change the resolver and other Stack settings per your needs"
                 echo 'resolver: lts-15.15'
+                echo ''
             fi
-            echo ''
             echo '## FOLLOWING CONTENTS GONNA BE OVERWRITTEN BY EPM ##'
             echo ''
             echo "local-bin-path: edh-universe/bin"
             echo 'packages:'
-            find edh-universe -name \*.cabal | while read -r fn; do
-                echo " - $(dirname "${fn}")"
-            done
+            find edh-universe -name \*.cabal |
+                fgrep -v '/dist-newstyle/' | fgrep -v '/.stack-work/' |
+                while read -r fn; do
+                    echo " - $(dirname "${fn}")"
+                done
         ) >"_new_stack.yaml"
         edo mv -f "_new_stack.yaml" "stack.yaml"
     ); }
@@ -342,29 +344,31 @@ FLAGS:
             EPM_HOME=${p%%/edh-universe/bin}
             status_message "  > EPM home at [${EPM_HOME}] <"
             cd "${EPM_HOME}"
-            find edh-universe -name edh_modules | while read -r pkg_dir1; do
-                pkg_dir="${pkg_dir1%/edh_modules}"
-                pkg_id="${pkg_dir#edh-universe/}"
-                (
-                    edo pushd "${pkg_dir}" >/dev/null
-                    echo "${pkg_id} - $(git describe --all --dirty --broken)"
-                    if ${SHOW_REPO}; then
-                        echo " - From: $(
-                            git config remote.$(git config branch.$(git branch --format '%(refname:short)').remote).url
-                        )"
-                    fi
-                    if ${SHOW_BRANCH}; then
-                        echo " - Branch: $(edo git branch -vv)"
-                    fi
-                    if ${SHOW_MODULES}; then
-                        echo " - Modules:"
-                        find edh_modules -type f | while read -r modu; do
-                            echo "    ${modu}"
-                        done
-                    fi
-                    edo popd >/dev/null
-                ) || die "Failed browsing package ${pkg_id}"
-            done
+            find edh-universe -name edh_modules |
+                fgrep -v '/dist-newstyle/' | fgrep -v '/.stack-work/' |
+                while read -r pkg_dir1; do
+                    pkg_dir="${pkg_dir1%/edh_modules}"
+                    pkg_id="${pkg_dir#edh-universe/}"
+                    (
+                        edo pushd "${pkg_dir}" >/dev/null
+                        echo "${pkg_id} - $(git describe --all --dirty --broken)"
+                        if ${SHOW_REPO}; then
+                            echo " - From: $(
+                                git config remote.$(git config branch.$(git branch --format '%(refname:short)').remote).url
+                            )"
+                        fi
+                        if ${SHOW_BRANCH}; then
+                            echo " - Branch: $(edo git branch -vv)"
+                        fi
+                        if ${SHOW_MODULES}; then
+                            echo " - Modules:"
+                            find edh_modules -type f | while read -r modu; do
+                                echo "    ${modu}"
+                            done
+                        fi
+                        edo popd >/dev/null
+                    ) || die "Failed browsing package ${pkg_id}"
+                done
         done
     ); }
 
@@ -381,11 +385,13 @@ FLAGS:
             EPM_HOME=${p%%/edh-universe/bin}
             cd "${EPM_HOME}"
             pkg_dir=$(
-                find edh-universe -name edh_modules | while read -r pkg_dir1; do
-                    pkg_dir="${pkg_dir1%/edh_modules}"
-                    pkg_id="${pkg_dir#edh-universe/}"
-                    [ "${pkg_id%/${pkg}}" != "${pkg_id}" ] && echo "${pkg_dir}"
-                done
+                find edh-universe -name edh_modules |
+                    fgrep -v '/dist-newstyle/' | fgrep -v '/.stack-work/' |
+                    while read -r pkg_dir1; do
+                        pkg_dir="${pkg_dir1%/edh_modules}"
+                        pkg_id="${pkg_dir#edh-universe/}"
+                        [ "${pkg_id%/${pkg}}" != "${pkg_id}" ] && echo "${pkg_dir}"
+                    done
             )
             if [ -d "${pkg_dir}" ]; then
                 # implant `--overwrite-policy=always --installdir=${EPM_HOME}/edh-universe/bin`
@@ -427,42 +433,44 @@ FLAGS:
     # Update local packages installed by epm
     update_pkgs() { (
         cd "${EPM_HOME}"
-        find edh-universe -name edh_modules | while read -r pkg_dir1; do
-            pkg_dir="${pkg_dir1%/edh_modules}"
-            pkg_id="${pkg_dir#edh-universe/}"
+        find edh-universe -name edh_modules |
+            fgrep -v '/dist-newstyle/' | fgrep -v '/.stack-work/' |
+            while read -r pkg_dir1; do
+                pkg_dir="${pkg_dir1%/edh_modules}"
+                pkg_id="${pkg_dir#edh-universe/}"
 
-            status_message "Updating ${pkg_id}"
+                status_message "Updating ${pkg_id}"
 
-            (
-                edo pushd "${pkg_dir}" >/dev/null
-                edo git pull
-                edo popd >/dev/null
-            ) || die "Failed updating package ${pkg_id}"
+                (
+                    edo pushd "${pkg_dir}" >/dev/null
+                    edo git pull
+                    edo popd >/dev/null
+                ) || die "Failed updating package ${pkg_id}"
 
-            (
-                find edh_modules -type l | while read -r modu_root; do
-                    mr_path=$(readlink "${modu_root}")
-                    if [ "${mr_path#../${pkg_dir1}/}" != "${mr_path}" ]; then
-                        edo rm "${modu_root}" || die "Failed unlink ${modu_root}"
-                    fi
-                done
+                (
+                    find edh_modules -type l | while read -r modu_root; do
+                        mr_path=$(readlink "${modu_root}")
+                        if [ "${mr_path#../${pkg_dir1}/}" != "${mr_path}" ]; then
+                            edo rm "${modu_root}" || die "Failed unlink ${modu_root}"
+                        fi
+                    done
 
-                edo pushd edh_modules >/dev/null
-                for a in ../"${pkg_dir}"/edh_modules/*; do
-                    b=$(basename "$a")
-                    [ -e "./$b" ] && edo rm -rf "./$b"
-                    edo ln -s "$a" "$b"
-                done
-                edo popd >/dev/null
-            ) || die "Failed re-linking Edh module artifacts"
+                    edo pushd edh_modules >/dev/null
+                    for a in ../"${pkg_dir}"/edh_modules/*; do
+                        b=$(basename "$a")
+                        [ -e "./$b" ] && edo rm -rf "./$b"
+                        edo ln -s "$a" "$b"
+                    done
+                    edo popd >/dev/null
+                ) || die "Failed re-linking Edh module artifacts"
 
-            ${EPM_BUILD_HS} && ( (
-                edo pushd "${pkg_dir}" >/dev/null
-                status_message "Building Haskell components for ${pkg_id} ..."
-                edo cabal build all
-                edo popd >/dev/null
-            ) || red_message "Failed building Haskell components for ${pkg_id}")
-        done
+                ${EPM_BUILD_HS} && ( (
+                    edo pushd "${pkg_dir}" >/dev/null
+                    status_message "Building Haskell components for ${pkg_id} ..."
+                    edo cabal build all
+                    edo popd >/dev/null
+                ) || red_message "Failed building Haskell components for ${pkg_id}")
+            done
     ); }
 
     #######################
@@ -475,30 +483,32 @@ FLAGS:
     # Removes the specified package(s) installed by epm.
     rm_pkgs() { (
         cd "${EPM_HOME}"
-        find edh-universe -name edh_modules | while read -r pkg_dir1; do
-            pkg_dir="${pkg_dir1%/edh_modules}"
-            pkg_id="${pkg_dir#edh-universe/}"
-            edo pushd "${pkg_dir}" >/dev/null
-            pkg_repo="$(
-                git config remote.$(git config branch.$(git branch --format '%(refname:short)').remote).url
-            )"
-            edo popd >/dev/null
-            for name2rm in "$@"; do
-                if [ "${pkg_id%/${name2rm}}" != "${pkg_id}" ]; then
-                    warning_message "Package [${pkg_id}] has upstream ${pkg_repo}"
-                    if ask_for_confirmation "Remove it from [${EPM_HOME}] ?"; then
-                        status_message "Removing ${pkg_dir} ..."
-                        find edh_modules -type l | while read -r modu_root; do
-                            mr_path=$(readlink "${modu_root}")
-                            if [ "${mr_path#../${pkg_dir1}/}" != "${mr_path}" ]; then
-                                edo rm "${modu_root}" || die "Failed unlink ${modu_root}"
-                            fi
-                        done
-                        edo rm -rf "${pkg_dir}"
+        find edh-universe -name edh_modules |
+            fgrep -v '/dist-newstyle/' | fgrep -v '/.stack-work/' |
+            while read -r pkg_dir1; do
+                pkg_dir="${pkg_dir1%/edh_modules}"
+                pkg_id="${pkg_dir#edh-universe/}"
+                edo pushd "${pkg_dir}" >/dev/null
+                pkg_repo="$(
+                    git config remote.$(git config branch.$(git branch --format '%(refname:short)').remote).url
+                )"
+                edo popd >/dev/null
+                for name2rm in "$@"; do
+                    if [ "${pkg_id%/${name2rm}}" != "${pkg_id}" ]; then
+                        warning_message "Package [${pkg_id}] has upstream ${pkg_repo}"
+                        if ask_for_confirmation "Remove it from [${EPM_HOME}] ?"; then
+                            status_message "Removing ${pkg_dir} ..."
+                            find edh_modules -type l | while read -r modu_root; do
+                                mr_path=$(readlink "${modu_root}")
+                                if [ "${mr_path#../${pkg_dir1}/}" != "${mr_path}" ]; then
+                                    edo rm "${modu_root}" || die "Failed unlink ${modu_root}"
+                                fi
+                            done
+                            edo rm -rf "${pkg_dir}"
+                        fi
                     fi
-                fi
+                done
             done
-        done
         update_stack_packages
     ); }
 
@@ -600,7 +610,7 @@ FLAGS:
     check_required_commands() {
         _missing_commands=
 
-        for com in "$@" basename dirname find git; do
+        for com in "$@" basename dirname find fgrep git; do
             command_exists "${com}" || {
                 _missing_commands="${_missing_commands} ${com}"
             }
@@ -771,7 +781,7 @@ update"
                 epm_exec "$@"
                 break
                 ;;
-            update | u)
+            update | up | u)
                 MODIFYING_EPM_HOME=true
                 locate_epm_home || die "No modifiable EPM home to update"
                 cd "${EPM_HOME}"

@@ -301,7 +301,8 @@ FLAGS:
         (
             if [ -d "${pkg_dir}" ]; then
                 edo pushd "${pkg_dir}" >/dev/null
-                edo git checkout -f -B "${BRANCH:-master}"
+                edo git fetch --all
+                edo git checkout -B "${BRANCH:-master}" -t origin/"${BRANCH:-master}"
                 edo popd >/dev/null
             else
                 edo git clone -b "${BRANCH:-master}" "${full_url}" "${pkg_dir}"

@@ -7,53 +7,48 @@
     #--[ Global Variables ]--#
     ##########################
 
+    # @VARIABLE: VERSION
+    # @DESCRIPTION:
+    # Version of this script.
+    VERSION=0.0.1
 
-# @VARIABLE: VERSION
-# @DESCRIPTION:
-# Version of this script.
-VERSION=0.0.1
+    # local packages root directory
+    EPM_ROOT="$(pwd)"
 
+    # Default base URL for short package names
+    BASE_URL=${EPM_REPO_BASE:-"https://github.com/e-wrks"}
 
-# local packages root directory
-EPM_ROOT="$(pwd)"
+    SHOW_REPO=false
+    SHOW_BRANCH=false
+    SHOW_MODULES=false
 
-# Default base URL for short package names
-BASE_URL=${EPM_REPO_BASE:-"https://github.com/e-wrks"}
+    # @VARIABLE: SCRIPT
+    # @DESCRIPTION:
+    # Name of this script. This will be the
+    # shell name if this script is sourced, so
+    # only rely on this for echos and trivial things.
+    SCRIPT="$(basename "$0")"
 
-SHOW_REPO=false
-SHOW_BRANCH=false
-SHOW_MODULES=false
+    # @VARIABLE: VERBOSE
+    # @DESCRIPTION:
+    # Whether to print verbose messages in this script.
+    VERBOSE=false
 
-
-# @VARIABLE: SCRIPT
-# @DESCRIPTION:
-# Name of this script. This will be the
-# shell name if this script is sourced, so
-# only rely on this for echos and trivial things.
-SCRIPT="$(basename "$0")"
-
-# @VARIABLE: VERBOSE
-# @DESCRIPTION:
-# Whether to print verbose messages in this script.
-VERBOSE=false
-
-# @VARIABLE: FORCE
-# @DESCRIPTION:
-# Whether to force installation and overwrite files.
-FORCE=false
-
+    # @VARIABLE: FORCE
+    # @DESCRIPTION:
+    # Whether to force installation and overwrite files.
+    FORCE=false
 
     ####################
     #--[ Print Help ]--#
     ####################
 
-
-# @FUNCTION: usage
-# @DESCRIPTION:
-# Print the help message for 'epm' to STDERR
-# and exit the script with status code 1.
-usage() {
-    (>&2 echo "epm ${VERSION}
+    # @FUNCTION: usage
+    # @DESCRIPTION:
+    # Print the help message for 'epm' to STDERR
+    # and exit the script with status code 1.
+    usage() {
+        (echo >&2 "epm ${VERSION}
 Edh Package Manager
 
 USAGE:
@@ -74,15 +69,15 @@ SUBCOMMANDS:
     with    | w           Run command within the directory of a package
     rm                    Remove installed packages
 ")
-    exit 1
-}
+        exit 1
+    }
 
-# @FUNCTION: install_usage
-# @DESCRIPTION:
-# Print the help message for 'epm install' to STDERR
-# and exit the script with status code 1.
-install_usage() {
-    (>&2 echo "epm-install
+    # @FUNCTION: install_usage
+    # @DESCRIPTION:
+    # Print the help message for 'epm install' to STDERR
+    # and exit the script with status code 1.
+    install_usage() {
+        (echo >&2 "epm-install
 Install packages as specified
 
 USAGE:
@@ -104,16 +99,15 @@ ARGS:
 EXAMPLES:
     epm install -b 0.3 edh -b 0.1 nedh -B https://git.corporate.lan -b golden esb/cord -b qa esb/mart
 ")
-    exit 1
-}
+        exit 1
+    }
 
-
-# @FUNCTION: with_usage
-# @DESCRIPTION:
-# Print the help message for 'epm with' to STDERR
-# and exit the script with status code 1.
-with_usage() {
-    (>&2 echo "epm-with
+    # @FUNCTION: with_usage
+    # @DESCRIPTION:
+    # Print the help message for 'epm with' to STDERR
+    # and exit the script with status code 1.
+    with_usage() {
+        (echo >&2 "epm-with
 Run command within the directory of a package
 
 USAGE:
@@ -126,16 +120,15 @@ ARGS:
     <PKG>                   E.g. \"nedh\" or \"sedh\"
     <CMD> [ <ARGn> ... ]    E.g. cabal run edhi or bash
 ")
-    exit 1
-}
+        exit 1
+    }
 
-
-# @FUNCTION: rm_usage
-# @DESCRIPTION:
-# Print the help message for 'epm rm' to STDERR
-# and exit the script with status code 1.
-rm_usage() {
-    (>&2 echo "epm-rm
+    # @FUNCTION: rm_usage
+    # @DESCRIPTION:
+    # Print the help message for 'epm rm' to STDERR
+    # and exit the script with status code 1.
+    rm_usage() {
+        (echo >&2 "epm-rm
 Remove the specified packages installed by epm
 
 USAGE:
@@ -147,16 +140,15 @@ FLAGS:
 ARGS:
     <PKGn>           E.g. \"nedh\" or \"sedh\"
 ")
-    exit 1
-}
+        exit 1
+    }
 
-
-# @FUNCTION: list_usage
-# @DESCRIPTION:
-# Print the help message for 'epm list' to STDERR
-# and exit the script with status code 1.
-list_usage() {
-    (>&2 echo "epm-list
+    # @FUNCTION: list_usage
+    # @DESCRIPTION:
+    # Print the help message for 'epm list' to STDERR
+    # and exit the script with status code 1.
+    list_usage() {
+        (echo >&2 "epm-list
 Show locally installed packages
 
 USAGE:
@@ -168,164 +160,38 @@ FLAGS:
     -b, --branch           Show branches
     -m, --modules          List Edh modules
 ")
-    exit 1
-}
-
+        exit 1
+    }
 
     ############################
     #--[ Subcommand install ]--#
     ############################
 
-# @FUNCTION: install_pkg
-# @USAGE: <PKG>
-# @DESCRIPTION:
-# Installs the specified package
-install_pkg() {
-    if [ "${1#*://}" == "$1" ]; then
-        full_url="${BASE_URL}/$1"
-    else
-        full_url="$1"
-    fi
-    pkg_id=${full_url#*://*/}
-    pkg_dir=edh-universe/"${pkg_id}"
-
-    status_message "Installing $1 to ${pkg_dir} ..."
-    (
-        if [ -d "${pkg_dir}" ]; then
-            edo pushd "${pkg_dir}" >/dev/null
-            edo git checkout -f -B "${BRANCH:-master}"
-            edo popd >/dev/null
+    # @FUNCTION: install_pkg
+    # @USAGE: <PKG>
+    # @DESCRIPTION:
+    # Installs the specified package
+    install_pkg() {
+        if [ "${1#*://}" == "$1" ]; then
+            full_url="${BASE_URL}/$1"
         else
-            edo git clone -b "${BRANCH:-master}" "${full_url}" "${pkg_dir}"
+            full_url="$1"
         fi
-    ) || die "Failed cloning ${full_url} to ${pkg_dir}"
+        pkg_id=${full_url#*://*/}
+        pkg_dir=edh-universe/"${pkg_id}"
 
-    (
-        edo pushd edh_modules >/dev/null
-        for a in ../"${pkg_dir}"/edh_modules/*; do
-            b=$(basename "$a")
-            [ -e "./$b" ] && edo rm -rf "./$b"
-            edo ln -s "$a" "$b"
-        done
-        edo popd >/dev/null
-    ) || die "Failed linking Edh module artifacts"
-
-    (
-        edo pushd "${pkg_dir}" >/dev/null
-        status_message "Building Haskell components for ${pkg_id} ..."
-        edo cabal build all
-        edo popd >/dev/null
-    ) || red_message "Failed building Haskell components for ${pkg_id}"
-
-    status_message "Installed $1 ."
-
-    unset full_url pkg_id pkg_dir a b
-}
-
-
-    #########################
-    #--[ Subcommand list ]--#
-    #########################
-
-# @FUNCTION: list
-# @USAGE: <tool> <raw-format> <criteria>
-# @DESCRIPTION:
-# List local packages installed by epm
-list_pkgs() {
-    find edh-universe -name edh_modules | while read pkg_dir1; do
-        pkg_dir="${pkg_dir1%/edh_modules}"
-        pkg_id="${pkg_dir#edh-universe/}"
+        status_message "Installing $1 to ${pkg_dir} ..."
         (
-            edo pushd "${pkg_dir}" >/dev/null
-            echo "${pkg_id} - $(git describe --all --dirty --broken)"
-            if ${SHOW_REPO}; then
-                echo " - From: $(
-                    git config remote.$(git config branch.$(git branch --format '%(refname:short)').remote).url
-                )"
+            if [ -d "${pkg_dir}" ]; then
+                edo pushd "${pkg_dir}" >/dev/null
+                edo git checkout -f -B "${BRANCH:-master}"
+                edo popd >/dev/null
+            else
+                edo git clone -b "${BRANCH:-master}" "${full_url}" "${pkg_dir}"
             fi
-            if ${SHOW_BRANCH}; then
-                echo " - Branch: $(edo git branch -vv)"
-            fi
-            if ${SHOW_MODULES}; then
-                echo " - Modules:"
-                find edh_modules -type f | while read modu; do
-                    echo "    ${modu}"
-                done
-            fi
-            edo popd >/dev/null
-        ) || die "Failed browsing package ${pkg_id}"
-    done
-
-    unset pkg_dir1 pkg_dir pkg_id modu
-}
-
-
-    #########################
-    #--[ Subcommand with ]--#
-    #########################
-
-# Run command in a package's directory
-with_pkg() {
-    pkg="$1"
-    shift 1
-
-    # implant `--overwrite-policy=always --installdir=${EPM_ROOT}/edh-universe/bin`
-    # to `cabal install` cmdl, magically !
-    if [ "$1" == "cabal" -a "$2" == "install" ]; then
-        shift 2
-        set -- cabal install --overwrite-policy=always --installdir=${EPM_ROOT}/edh-universe/bin "$@"
-    fi
-
-    pkg_dir=$(find edh-universe -name edh_modules | while read pkg_dir1; do
-        pkg_dir="${pkg_dir1%/edh_modules}"
-        pkg_id="${pkg_dir#edh-universe/}"
-        if [ "${pkg_id%/${pkg}}" != "${pkg_id}" ]; then
-            echo "${pkg_dir}"
-        fi
-    done)
-    if [ -n "${pkg_dir}" ]; then
-        pkg_id="${pkg_dir#edh-universe/}"
-        status_message " >> With Edh package [${pkg_id}] <<"
-        edo pushd "${pkg_dir}" >/dev/null
-        export EPM_ROOT
-        export PATH="${EPM_ROOT}"/edh-universe/bin:"${PATH}"
-        exec $*
-        edo popd >/dev/null
-        red_message "You've been kicked back."
-    else
-        warning_message "No such package: ${pkg}"
-    fi
-
-    unset pkg pkg_dir1 pkg_dir pkg_id
-}
-
-
-    #########################
-    #--[ Subcommand update ]--#
-    #########################
-
-# Update local packages installed by epm
-update_pkgs() {
-    find edh-universe -name edh_modules | while read pkg_dir1; do
-        pkg_dir="${pkg_dir1%/edh_modules}"
-        pkg_id="${pkg_dir#edh-universe/}"
-
-        status_message "Updating ${pkg_id}"
+        ) || die "Failed cloning ${full_url} to ${pkg_dir}"
 
         (
-            edo pushd "${pkg_dir}" >/dev/null
-            edo git pull
-            edo popd >/dev/null
-        ) || die "Failed updating package ${pkg_id}"
-
-        (
-            find edh_modules -type l | while read modu_root; do
-                mr_path=$(readlink "${modu_root}")
-                if [ "${mr_path#../${pkg_dir1}/}" != "${mr_path}" ]; then
-                    edo rm "${modu_root}" || die "Failed unlink ${modu_root}"
-                fi
-            done
-
             edo pushd edh_modules >/dev/null
             for a in ../"${pkg_dir}"/edh_modules/*; do
                 b=$(basename "$a")
@@ -333,309 +199,448 @@ update_pkgs() {
                 edo ln -s "$a" "$b"
             done
             edo popd >/dev/null
-        ) || die "Failed re-linking Edh module artifacts"
+        ) || die "Failed linking Edh module artifacts"
 
-    done
+        (
+            edo pushd "${pkg_dir}" >/dev/null
+            status_message "Building Haskell components for ${pkg_id} ..."
+            edo cabal build all
+            edo popd >/dev/null
+        ) || red_message "Failed building Haskell components for ${pkg_id}"
 
-    unset pkg_dir1 pkg_dir pkg_id modu_root mr_path a b
-}
+        status_message "Installed $1 ."
 
+        unset full_url pkg_id pkg_dir a b
+    }
+
+    #########################
+    #--[ Subcommand list ]--#
+    #########################
+
+    # @FUNCTION: list
+    # @USAGE: <tool> <raw-format> <criteria>
+    # @DESCRIPTION:
+    # List local packages installed by epm
+    list_pkgs() {
+        find edh-universe -name edh_modules | while read pkg_dir1; do
+            pkg_dir="${pkg_dir1%/edh_modules}"
+            pkg_id="${pkg_dir#edh-universe/}"
+            (
+                edo pushd "${pkg_dir}" >/dev/null
+                echo "${pkg_id} - $(git describe --all --dirty --broken)"
+                if ${SHOW_REPO}; then
+                    echo " - From: $(
+                        git config remote.$(git config branch.$(git branch --format '%(refname:short)').remote).url
+                    )"
+                fi
+                if ${SHOW_BRANCH}; then
+                    echo " - Branch: $(edo git branch -vv)"
+                fi
+                if ${SHOW_MODULES}; then
+                    echo " - Modules:"
+                    find edh_modules -type f | while read modu; do
+                        echo "    ${modu}"
+                    done
+                fi
+                edo popd >/dev/null
+            ) || die "Failed browsing package ${pkg_id}"
+        done
+
+        unset pkg_dir1 pkg_dir pkg_id modu
+    }
+
+    #########################
+    #--[ Subcommand with ]--#
+    #########################
+
+    # Run command in a package's directory
+    with_pkg() {
+        pkg="$1"
+        shift 1
+
+        # implant `--overwrite-policy=always --installdir=${EPM_ROOT}/edh-universe/bin`
+        # to `cabal install` cmdl, magically !
+        if [ "$1" == "cabal" -a "$2" == "install" ]; then
+            shift 2
+            set -- cabal install --overwrite-policy=always --installdir=${EPM_ROOT}/edh-universe/bin "$@"
+        fi
+
+        pkg_dir=$(find edh-universe -name edh_modules | while read pkg_dir1; do
+            pkg_dir="${pkg_dir1%/edh_modules}"
+            pkg_id="${pkg_dir#edh-universe/}"
+            if [ "${pkg_id%/${pkg}}" != "${pkg_id}" ]; then
+                echo "${pkg_dir}"
+            fi
+        done)
+        if [ -n "${pkg_dir}" ]; then
+            pkg_id="${pkg_dir#edh-universe/}"
+            status_message " >> With Edh package [${pkg_id}] <<"
+            edo pushd "${pkg_dir}" >/dev/null
+            export EPM_ROOT
+            export PATH="${EPM_ROOT}"/edh-universe/bin:"${PATH}"
+            exec $*
+            edo popd >/dev/null
+            red_message "You've been kicked back."
+        else
+            warning_message "No such package: ${pkg}"
+        fi
+
+        unset pkg pkg_dir1 pkg_dir pkg_id
+    }
+
+    #########################
+    #--[ Subcommand update ]--#
+    #########################
+
+    # Update local packages installed by epm
+    update_pkgs() {
+        find edh-universe -name edh_modules | while read pkg_dir1; do
+            pkg_dir="${pkg_dir1%/edh_modules}"
+            pkg_id="${pkg_dir#edh-universe/}"
+
+            status_message "Updating ${pkg_id}"
+
+            (
+                edo pushd "${pkg_dir}" >/dev/null
+                edo git pull
+                edo popd >/dev/null
+            ) || die "Failed updating package ${pkg_id}"
+
+            (
+                find edh_modules -type l | while read modu_root; do
+                    mr_path=$(readlink "${modu_root}")
+                    if [ "${mr_path#../${pkg_dir1}/}" != "${mr_path}" ]; then
+                        edo rm "${modu_root}" || die "Failed unlink ${modu_root}"
+                    fi
+                done
+
+                edo pushd edh_modules >/dev/null
+                for a in ../"${pkg_dir}"/edh_modules/*; do
+                    b=$(basename "$a")
+                    [ -e "./$b" ] && edo rm -rf "./$b"
+                    edo ln -s "$a" "$b"
+                done
+                edo popd >/dev/null
+            ) || die "Failed re-linking Edh module artifacts"
+
+        done
+
+        unset pkg_dir1 pkg_dir pkg_id modu_root mr_path a b
+    }
 
     #######################
     #--[ Subcommand rm ]--#
     #######################
 
-# @FUNCTION: rm_pkgs
-# @USAGE: <ghcversion>
-# @DESCRIPTION:
-# Removes the specified packages installed by epm.
-rm_pkgs() {
-    find edh-universe -name edh_modules | while read pkg_dir1; do
-        pkg_dir="${pkg_dir1%/edh_modules}"
-        pkg_id="${pkg_dir#edh-universe/}"
-        edo pushd "${pkg_dir}" >/dev/null
-        pkg_repo="$(
-            git config remote.$(git config branch.$(git branch --format '%(refname:short)').remote).url
-        )"
-        edo popd >/dev/null
-        for name2rm in "$@"; do
-            if [ "${pkg_id%/${name2rm}}" != "${pkg_id}" ]; then
-                if ask_for_confirmation "Remove [${pkg_id}] from ${pkg_repo} ?"; then
-                    status_message "Removing ${pkg_dir} ..."
-                    find edh_modules -type l | while read modu_root; do
-                        mr_path=$(readlink "${modu_root}")
-                        if [ "${mr_path#../${pkg_dir1}/}" != "${mr_path}" ]; then
-                            edo rm "${modu_root}" || die "Failed unlink ${modu_root}"
-                        fi
-                    done
-                    edo rm -rf "${pkg_dir}"
+    # @FUNCTION: rm_pkgs
+    # @USAGE: <ghcversion>
+    # @DESCRIPTION:
+    # Removes the specified packages installed by epm.
+    rm_pkgs() {
+        find edh-universe -name edh_modules | while read pkg_dir1; do
+            pkg_dir="${pkg_dir1%/edh_modules}"
+            pkg_id="${pkg_dir#edh-universe/}"
+            edo pushd "${pkg_dir}" >/dev/null
+            pkg_repo="$(
+                git config remote.$(git config branch.$(git branch --format '%(refname:short)').remote).url
+            )"
+            edo popd >/dev/null
+            for name2rm in "$@"; do
+                if [ "${pkg_id%/${name2rm}}" != "${pkg_id}" ]; then
+                    if ask_for_confirmation "Remove [${pkg_id}] from ${pkg_repo} ?"; then
+                        status_message "Removing ${pkg_dir} ..."
+                        find edh_modules -type l | while read modu_root; do
+                            mr_path=$(readlink "${modu_root}")
+                            if [ "${mr_path#../${pkg_dir1}/}" != "${mr_path}" ]; then
+                                edo rm "${modu_root}" || die "Failed unlink ${modu_root}"
+                            fi
+                        done
+                        edo rm -rf "${pkg_dir}"
+                    fi
                 fi
-            fi
+            done
         done
-    done
 
-    unset pkg_dir1 pkg_dir pkg_id pkg_repo name2rm modu_root mr_path
-}
-
+        unset pkg_dir1 pkg_dir pkg_id pkg_repo name2rm modu_root mr_path
+    }
 
     ###########################
     #--[ Utility functions ]--#
     ###########################
 
+    # @FUNCTION: die
+    # @USAGE: [msg]
+    # @DESCRIPTION:
+    # Exits the shell script with status code 2
+    # and prints the given message in red to STDERR, if any.
+    die() {
+        (red_message >&2 "$1")
+        exit 2
+    }
 
-# @FUNCTION: die
-# @USAGE: [msg]
-# @DESCRIPTION:
-# Exits the shell script with status code 2
-# and prints the given message in red to STDERR, if any.
-die() {
-    (>&2 red_message "$1")
-    exit 2
-}
-
-# @FUNCTION: edo
-# @USAGE: <command>
-# @DESCRIPTION:
-# Executes the given command. Also prints what
-# command that is (in blue) if verbosity is enabled.
-# Exits with status code 2 if the command failed.
-edo()
-{
-    if ${VERBOSE} ; then
-        printf "\\033[0;34m%s\\033[0m\\n" "$*" 1>&2
-    fi
-    "$@" || exit 2
-}
-
-# @FUNCTION: debug_message
-# @USAGE: <msg>
-# @DESCRIPTION:
-# Print a blue debug message if verbosity is enabled.
-debug_message() {
-    if ${VERBOSE} ; then
-        (>&2 printf "\\033[0;34m%s\\033[0m\\n" "$1")
-    fi
-}
-
-# @FUNCTION: optionv
-# @USAGE: <arg1> [arg2]
-# @DESCRIPTION:
-# If verbosity is enabled, echo the first argument, otherwise
-# the second (if any).
-# @STDOUT: first or second argument
-optionv() {
-    if ${VERBOSE} ; then
-        echo "$1"
-    else
-        if [ -n "$2" ] ; then
-            echo "$2"
+    # @FUNCTION: edo
+    # @USAGE: <command>
+    # @DESCRIPTION:
+    # Executes the given command. Also prints what
+    # command that is (in blue) if verbosity is enabled.
+    # Exits with status code 2 if the command failed.
+    edo() {
+        if ${VERBOSE}; then
+            printf "\\033[0;34m%s\\033[0m\\n" "$*" 1>&2
         fi
-    fi
-}
+        "$@" || exit 2
+    }
 
-# @FUNCTION: status_message
-# @USAGE: <msg>
-# @DESCRIPTION:
-# Print a green status message.
-status_message() {
-    printf "\\033[0;32m%s\\033[0m\\n" "$1"
-}
+    # @FUNCTION: debug_message
+    # @USAGE: <msg>
+    # @DESCRIPTION:
+    # Print a blue debug message if verbosity is enabled.
+    debug_message() {
+        if ${VERBOSE}; then
+            (printf >&2 "\\033[0;34m%s\\033[0m\\n" "$1")
+        fi
+    }
 
-# @FUNCTION: warning_message
-# @USAGE: <msg>
-# @DESCRIPTION:
-# Print a yellow warning message.
-warning_message() {
-    printf "\\033[1;33m%s\\033[0m\\n" "$1"
-}
+    # @FUNCTION: optionv
+    # @USAGE: <arg1> [arg2]
+    # @DESCRIPTION:
+    # If verbosity is enabled, echo the first argument, otherwise
+    # the second (if any).
+    # @STDOUT: first or second argument
+    optionv() {
+        if ${VERBOSE}; then
+            echo "$1"
+        else
+            if [ -n "$2" ]; then
+                echo "$2"
+            fi
+        fi
+    }
 
-# @FUNCTION: red_message
-# @USAGE: <msg>
-# @DESCRIPTION:
-# Print a red message.
-red_message() {
-    printf "\\033[0;31m%s\\033[0m\\n" "$1"
-}
+    # @FUNCTION: status_message
+    # @USAGE: <msg>
+    # @DESCRIPTION:
+    # Print a green status message.
+    status_message() {
+        printf "\\033[0;32m%s\\033[0m\\n" "$1"
+    }
 
-# @FUNCTION: command_exists
-# @USAGE: <command>
-# @DESCRIPTION:
-# Check if a command exists (no arguments).
-# @RETURNS: 0 if the command exists, non-zero otherwise
-command_exists() {
-    [ -z "$1" ] && die "Internal error: no argument given to command_exists"
+    # @FUNCTION: warning_message
+    # @USAGE: <msg>
+    # @DESCRIPTION:
+    # Print a yellow warning message.
+    warning_message() {
+        printf "\\033[1;33m%s\\033[0m\\n" "$1"
+    }
 
-    command -V "$1" >/dev/null 2>&1
-    return $?
-}
+    # @FUNCTION: red_message
+    # @USAGE: <msg>
+    # @DESCRIPTION:
+    # Print a red message.
+    red_message() {
+        printf "\\033[0;31m%s\\033[0m\\n" "$1"
+    }
 
-# @FUNCTION: check_required_commands
-# @USAGE: [additional-commands]
-# @DESCRIPTION:
-# Check that all required commands for this script exist.
-# @STDOUT: The commands that do not exist
-# @RETURNS: 0 if all command exists, non-zero otherwise
-check_required_commands() {
-    _missing_commands=
+    # @FUNCTION: command_exists
+    # @USAGE: <command>
+    # @DESCRIPTION:
+    # Check if a command exists (no arguments).
+    # @RETURNS: 0 if the command exists, non-zero otherwise
+    command_exists() {
+        [ -z "$1" ] && die "Internal error: no argument given to command_exists"
 
-    for com in "$@" basename dirname git; do
-        command_exists "${com}" || {
-            _missing_commands="${_missing_commands} ${com}"
-        }
-    done
-    unset com
+        command -V "$1" >/dev/null 2>&1
+        return $?
+    }
 
-    if [ -n "${_missing_commands}" ] ; then
-        printf "%s" "${_missing_commands}"
-        unset _missing_commands
-        return 1
-    else
-        unset _missing_commands
-        return 0
-    fi
-}
+    # @FUNCTION: check_required_commands
+    # @USAGE: [additional-commands]
+    # @DESCRIPTION:
+    # Check that all required commands for this script exist.
+    # @STDOUT: The commands that do not exist
+    # @RETURNS: 0 if all command exists, non-zero otherwise
+    check_required_commands() {
+        _missing_commands=
 
-# @FUNCTION: ask_for_confirmation
-# @USAGE: [confirmation-msg]
-# @DESCRIPTION:
-# Asks the user for confirmation and returns 0 for yes, 1 for no.
-# @RETURN: 0 if user confirmed, 1 otherwise
-ask_for_confirmation() {
-    confirmation_msg=$1
+        for com in "$@" basename dirname git; do
+            command_exists "${com}" || {
+                _missing_commands="${_missing_commands} ${com}"
+            }
+        done
+        unset com
 
-    if [ -n "${confirmation_msg}" ] ; then
-        printf "%s\\n(y/n and press Enter)\\n" "${confirmation_msg}"
-    else
-        printf "Confirm action: (y/n and press Enter)\\n"
-    fi
-    read -r answer </dev/tty
+        if [ -n "${_missing_commands}" ]; then
+            printf "%s" "${_missing_commands}"
+            unset _missing_commands
+            return 1
+        else
+            unset _missing_commands
+            return 0
+        fi
+    }
 
-    if [ "${answer}" != "${answer#[Yy]}" ] ;then
-        return 0
-    else
-        return 1
-    fi
+    # @FUNCTION: ask_for_confirmation
+    # @USAGE: [confirmation-msg]
+    # @DESCRIPTION:
+    # Asks the user for confirmation and returns 0 for yes, 1 for no.
+    # @RETURN: 0 if user confirmed, 1 otherwise
+    ask_for_confirmation() {
+        confirmation_msg=$1
 
-    unset confirmation_msg answer
-}
+        if [ -n "${confirmation_msg}" ]; then
+            printf "%s\\n(y/n and press Enter)\\n" "${confirmation_msg}"
+        else
+            printf "Confirm action: (y/n and press Enter)\\n"
+        fi
+        read -r answer </dev/tty
 
+        if [ "${answer}" != "${answer#[Yy]}" ]; then
+            return 0
+        else
+            return 1
+        fi
+
+        unset confirmation_msg answer
+    }
 
     ##############################################
     #--[ Command line parsing and entry point ]--#
     ##############################################
 
-[ $# -lt 1 ] && usage
+    [ $# -lt 1 ] && usage
 
-while [ $# -gt 0 ] ; do
-    case $1 in
-    -v|--verbose)
-        VERBOSE=true
-        shift 1
-        if [ $# -lt 1 ] ; then
-            usage
-        fi
-        ;;
-    -V|--version)
-        printf "%s\\n" "${VERSION}"
-        exit 0;;
-    -B|--base)
-        if [ $# -lt 3 ] ; then
-            usage
-        fi
-        BASE_URL="$2"
-        shift 2
-        ;;
-    --list-commands)
-        echo "install
+    while [ $# -gt 0 ]; do
+        case $1 in
+        -v | --verbose)
+            VERBOSE=true
+            shift 1
+            if [ $# -lt 1 ]; then
+                usage
+            fi
+            ;;
+        -V | --version)
+            printf "%s\\n" "${VERSION}"
+            exit 0
+            ;;
+        -B | --base)
+            if [ $# -lt 3 ]; then
+                usage
+            fi
+            BASE_URL="$2"
+            shift 2
+            ;;
+        --list-commands)
+            echo "install
 list
 rm
 update"
-        exit 0;;
-    -h|--help)
-        usage;;
+            exit 0
+            ;;
+        -h | --help)
+            usage
+            ;;
 
-    *) ## startup tasks ##
+        *) ## startup tasks ##
 
-       (
-        [ -w edh_modules ]      || edo mkdir    edh_modules
-        [ -w edh-universe/bin ] || edo mkdir -p edh-universe/bin
-       ) || die "Can NOT create local directories in ${EPM_ROOT}"
+            (
+                [ -w edh_modules ] || edo mkdir edh_modules
+                [ -w edh-universe/bin ] || edo mkdir -p edh-universe/bin
+            ) || die "Can NOT create local directories in ${EPM_ROOT}"
 
-       # check for available commands
-       missing_commands="$(check_required_commands )"
-       if [ -n "${missing_commands}" ] ; then
-           die "Following commands are required, but missing, please install: ${missing_commands}"
-       fi
-       unset missing_commands
+            # check for available commands
+            missing_commands="$(check_required_commands)"
+            if [ -n "${missing_commands}" ]; then
+                die "Following commands are required, but missing, please install: ${missing_commands}"
+            fi
+            unset missing_commands
 
-       case $1 in
-       install|i)
-           shift 1
-           while [ $# -gt 0 ] ; do
-               case $1 in
-                   -h|--help) install_usage;;
-                   -B|--base)
-                        if [ $# -lt 2 ] ; then
+            case $1 in
+            install | i)
+                shift 1
+                while [ $# -gt 0 ]; do
+                    case $1 in
+                    -h | --help) install_usage ;;
+                    -B | --base)
+                        if [ $# -lt 2 ]; then
                             install_usage
                         fi
                         BASE_URL="$2"
-                        shift 2;;
-                   -b)
+                        shift 2
+                        ;;
+                    -b)
                         BRANCH="$1"
-                        shift 1;;
-                   *) install_pkg "$1"
+                        shift 1
+                        ;;
+                    *)
+                        install_pkg "$1"
                         # -b has to be specified per pkg
                         unset BRANCH
-                        shift 1;;
-               esac
-           done
-           break;;
-       list|l)
-           shift 1
-           while [ $# -gt 0 ] ; do
-               case $1 in
-                   -h|--help) list_usage;;
-                   -u|--upstream) SHOW_REPO=true
-                       shift 1;;
-                   -b|--branch) SHOW_BRANCH=true
-                       shift 1;;
-                   -m|--modules) SHOW_MODULES=true
-                       shift 1;;
-                   *) list_usage;;
-               esac
-           done
-           list_pkgs
-           break;;
-       with|w)
-            shift 1
-            [ $# -lt 2 ] && with_usage
-            case $1 in
-                -h|--help) with_usage;;
+                        shift 1
+                        ;;
+                    esac
+                done
+                break
+                ;;
+            list | l)
+                shift 1
+                while [ $# -gt 0 ]; do
+                    case $1 in
+                    -h | --help) list_usage ;;
+                    -u | --upstream)
+                        SHOW_REPO=true
+                        shift 1
+                        ;;
+                    -b | --branch)
+                        SHOW_BRANCH=true
+                        shift 1
+                        ;;
+                    -m | --modules)
+                        SHOW_MODULES=true
+                        shift 1
+                        ;;
+                    *) list_usage ;;
+                    esac
+                done
+                list_pkgs
+                break
+                ;;
+            with | w)
+                shift 1
+                [ $# -lt 2 ] && with_usage
+                case $1 in
+                -h | --help) with_usage ;;
+                esac
+                with_pkg "$@"
+                break
+                ;;
+            update | u)
+                update_pkgs
+                break
+                ;;
+            rm)
+                shift 1
+                PKGS2RM=""
+                while [ $# -gt 0 ]; do
+                    case $1 in
+                    -h | --help) rm_usage ;;
+                    -f | --force)
+                        FORCE=true
+                        shift 1
+                        ;;
+                    *)
+                        PKGS2RM="${PKGS2RM} $1"
+                        shift 1
+                        ;;
+                    esac
+                done
+                [ -n "${PKGS2RM}" ] && rm_pkgs ${PKGS2RM} || rm_usage
+                break
+                ;;
+            *) usage ;;
             esac
-            with_pkg "$@"
-            break;;
-       update|u)
-           update_pkgs
-           break;;
-       rm)
-           shift 1
-           PKGS2RM=""
-           while [ $# -gt 0 ] ; do
-               case $1 in
-                   -h|--help) rm_usage;;
-                   -f|--force) FORCE=true
-                      shift 1;;
-                   *) PKGS2RM="${PKGS2RM} $1"
-                      shift 1;;
-               esac
-           done
-           [ -n "${PKGS2RM}" ] && rm_pkgs ${PKGS2RM} || rm_usage
-           break;;
-       *) usage;;
-       esac
-       break;;
-    esac
-done
-
+            break
+            ;;
+        esac
+    done
 
 )

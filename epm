@@ -31,8 +31,6 @@
         (
             [ -w "${EPM_HOME}/edh_modules" ] || edo mkdir "${EPM_HOME}/edh_modules"
             [ -w "${EPM_HOME}/edh-universe/bin" ] || edo mkdir -p "${EPM_HOME}/edh-universe/bin"
-            update_cabal_packages
-            update_stack_packages
         ) || die "Can NOT create EPM home artifacts in [${EPM_HOME}]"
     }
 
@@ -179,31 +177,31 @@ FLAGS:
     -h, --help            Prints help information
     -V, --version         Prints version information
     -B, --base <URL>      URL prefix for upstream package repositories
-                    default:  ${BASE_URL}
-                    environment variable EPM_REPO_BASE overrides above
+                     default:  ${BASE_URL}
+                     environment variable EPM_REPO_BASE overrides above
 
 SUBCOMMANDS:
-    init                  Initialize current working directory as an EPM home
-    install    | i        Install new, or change branches of existing packages 
-    list       | l        List homes and packages
-    update     | u        Pull upstream changes of packages from tracked branches
-    with       | w        Run command within the directory of a package
-    run | exec | x        Run command with all effective EPM home's bin on \$PATH
-    rm                    Remove specified package(s) from nearest EPM home
+    init               Initialize current working directory as an EPM home
+    install     | i    Install new, or change branches of existing packages 
+    list        | l    List homes and packages
+    update | up | u    Pull upstream changes of packages from tracked branches
+    with        | w    Run command within the directory of a package
+    run | exec  | x    Run command with all effective EPM home's bin on \$PATH
+    rm                 Remove specified package(s) from nearest EPM home
 ")
         exit 1
     }
 
-    # @FUNCTION: install_usage
+    # @FUNCTION: init_usage
     # @DESCRIPTION:
-    # Print the help message for 'epm install' to STDERR
+    # Print the help message for 'epm init' to STDERR
     # and exit the script with status code 1.
-    install_usage() {
-        (echo >&2 "epm-install
-Install packages as specified
+    init_usage() {
+        (echo >&2 "epm-init
+Initialize current working directory as an EPM home, with packages as specified
 
 USAGE:
-    ${SCRIPT} install [FLAGS] [ -b <branch> ] [ <PKGn> | <URLn> ] [ -B <URL1> <PKG1> <PKG2> ... ] [ -B <URL2> <PKG3> ... ]
+    ${SCRIPT} init [FLAGS] [ -B <repo-base> ] [ -b <branch> ] [ <PKGn> | <URLn> ] ...
 
 FLAGS:
     -h, --help            Prints help information
@@ -219,7 +217,39 @@ ARGS:
     <URLn>                E.g. \"https://github.com/e-wrks/hasdb\"
 
 EXAMPLES:
-    epm install -b 0.3 edh -b 0.1 nedh -B https://git.corporate.lan -b golden esb/cord -b qa esb/mart
+    epm init -b 0.3 edh -b 0.1 nedh \\
+     -B https://git.corporate.lan -b golden esb/cord -b qa esb/mart
+")
+        exit 1
+    }
+
+    # @FUNCTION: install_usage
+    # @DESCRIPTION:
+    # Print the help message for 'epm install' to STDERR
+    # and exit the script with status code 1.
+    install_usage() {
+        (echo >&2 "epm-install
+Install packages as specified
+
+USAGE:
+    ${SCRIPT} install [FLAGS] [ -B <repo-base> ] [ -b <branch> ] [ <PKGn> | <URLn> ] ...
+
+FLAGS:
+    -h, --help            Prints help information
+
+ARGS:
+    -b <branch>           Branch to checkout and track
+                only applies to the immediately following package
+                default: master
+    -B, --base <URL>      URL prefix for upstream package repositories
+                    default:  ${BASE_URL}
+                    environment variable EPM_REPO_BASE overrides above
+    <PKGn>                E.g. nedh or sedh
+    <URLn>                E.g. \"https://github.com/e-wrks/hasdb\"
+
+EXAMPLES:
+    epm install -b 0.3 edh -b 0.1 nedh \\
+     -B https://git.corporate.lan -b golden esb/cord -b qa esb/mart
 ")
         exit 1
     }
@@ -309,6 +339,36 @@ FLAGS:
     ############################
     #--[ Subcommand install ]--#
     ############################
+
+    install_pkgs() { (
+        cd "${EPM_HOME}"
+        while [ $# -gt 0 ]; do
+            case $1 in
+            -B | --base)
+                if [ $# -lt 2 ]; then
+                    install_usage
+                fi
+                BASE_URL="$2"
+                shift 2
+                ;;
+            -b)
+                if [ $# -lt 2 ]; then
+                    install_usage
+                fi
+                BRANCH="$2"
+                shift 2
+                ;;
+            *)
+                install_pkg "$1"
+                # -b has to be specified per pkg
+                unset BRANCH
+                shift 1
+                ;;
+            esac
+        done
+        update_cabal_packages
+        update_stack_packages
+    ); }
 
     # @FUNCTION: install_pkg
     # @USAGE: <PKG>
@@ -734,45 +794,22 @@ update"
 
             case $1 in
             init)
+                shift 1
+                [ "$1" == "-h" -o "$1" == "--help" ] && init_usage
                 CREATING_EPM_HOME=true
                 MODIFYING_EPM_HOME=true
                 EPM_HOME=$(pwd)
                 init_epm_home
+                install_pkgs "$@"
                 break
                 ;;
             install | i)
                 shift 1
+                [ "$1" == "-h" -o "$1" == "--help" ] && install_usage
                 CREATING_EPM_HOME=true
                 MODIFYING_EPM_HOME=true
                 locate_epm_home || die "No writable EPM home to install packages"
-                cd "${EPM_HOME}"
-                while [ $# -gt 0 ]; do
-                    case $1 in
-                    -h | --help) install_usage ;;
-                    -B | --base)
-                        if [ $# -lt 2 ]; then
-                            install_usage
-                        fi
-                        BASE_URL="$2"
-                        shift 2
-                        ;;
-                    -b)
-                        if [ $# -lt 2 ]; then
-                            install_usage
-                        fi
-                        BRANCH="$2"
-                        shift 2
-                        ;;
-                    *)
-                        install_pkg "$1"
-                        # -b has to be specified per pkg
-                        unset BRANCH
-                        shift 1
-                        ;;
-                    esac
-                done
-                update_cabal_packages
-                update_stack_packages
+                install_pkgs "$@"
                 break
                 ;;
             list | l)

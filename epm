@@ -10,7 +10,7 @@
     # @VARIABLE: VERSION
     # @DESCRIPTION:
     # Version of this script.
-    VERSION=0.1.0
+    VERSION=0.1.1
 
     # Default base URL for short package names
     BASE_URL=${EPM_REPO_BASE:-"https://github.com/e-wrks"}
@@ -114,6 +114,8 @@
     CREATING_EPM_HOME=false
     # whether we tend to modify an EPM home
     MODIFYING_EPM_HOME=false
+    # whether build Haskell source by EPM
+    EPM_BUILD_HS=false
 
     # @VARIABLE: VERBOSE
     # @DESCRIPTION:
@@ -314,12 +316,12 @@ FLAGS:
             edo popd >/dev/null
         ) || die "Failed linking Edh module artifacts"
 
-        (
+        ${EPM_BUILD_HS} && ( (
             edo pushd "${pkg_dir}" >/dev/null
             status_message "Building Haskell components for ${pkg_id} ..."
             edo cabal build all
             edo popd >/dev/null
-        ) || red_message "Failed building Haskell components for ${pkg_id}"
+        ) || red_message "Failed building Haskell components for ${pkg_id}")
 
         status_message "Installed $1 ."
 
@@ -454,12 +456,12 @@ FLAGS:
                 edo popd >/dev/null
             ) || die "Failed re-linking Edh module artifacts"
 
-            (
+            ${EPM_BUILD_HS} && ( (
                 edo pushd "${pkg_dir}" >/dev/null
                 status_message "Building Haskell components for ${pkg_id} ..."
                 edo cabal build all
                 edo popd >/dev/null
-            ) || red_message "Failed building Haskell components for ${pkg_id}"
+            ) || red_message "Failed building Haskell components for ${pkg_id}")
         done
     ); }
 

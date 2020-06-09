@@ -15,7 +15,7 @@ VERSION=0.0.1
 
 
 # local packages root directory
-PKG_ROOT="$(pwd)"
+EPM_ROOT="$(pwd)"
 
 # Default base URL for short package names
 BASE_URL=${EPM_REPO_BASE:-"https://github.com/e-wrks"}
@@ -71,6 +71,7 @@ SUBCOMMANDS:
     install | i           Install packages
     list    | l           List packages
     update  | u           Pull tracked branch for all packages
+    with    | w           Run command within the directory of a package
     rm                    Remove installed packages
 ")
     exit 1
@@ -105,6 +106,29 @@ EXAMPLES:
 ")
     exit 1
 }
+
+
+# @FUNCTION: with_usage
+# @DESCRIPTION:
+# Print the help message for 'epm with' to STDERR
+# and exit the script with status code 1.
+with_usage() {
+    (>&2 echo "epm-with
+Run command within the directory of a package
+
+USAGE:
+    ${SCRIPT} with [FLAGS] <PKG> <CMD> [ <ARG1> <ARG2> ... ]
+
+FLAGS:
+    -h, --help              Prints help information
+
+ARGS:
+    <PKG>                   E.g. \"nedh\" or \"sedh\"
+    <CMD> [ <ARGn> ... ]    E.g. cabal run edhi or bash
+")
+    exit 1
+}
+
 
 # @FUNCTION: rm_usage
 # @DESCRIPTION:
@@ -158,42 +182,44 @@ FLAGS:
 # Installs the specified package
 install_pkg() {
     if [ "${1#*://}" == "$1" ]; then
-        FULL_URL="${BASE_URL}/$1"
+        full_url="${BASE_URL}/$1"
     else
-        FULL_URL="$1"
+        full_url="$1"
     fi
-    PKG_ID=${FULL_URL#*://*/}
-    PKG_DIR=edh-universe/"${PKG_ID}"
+    pkg_id=${full_url#*://*/}
+    pkg_dir=edh-universe/"${pkg_id}"
 
-    status_message "Installing $1 to ${PKG_DIR} ..."
+    status_message "Installing $1 to ${pkg_dir} ..."
     (
-        if [ -d "${PKG_DIR}" ]; then
-            edo pushd "${PKG_DIR}" >/dev/null
+        if [ -d "${pkg_dir}" ]; then
+            edo pushd "${pkg_dir}" >/dev/null
             edo git checkout -f -B "${BRANCH:-master}"
             edo popd >/dev/null
         else
-            edo git clone -b "${BRANCH:-master}" "${FULL_URL}" "${PKG_DIR}"
+            edo git clone -b "${BRANCH:-master}" "${full_url}" "${pkg_dir}"
         fi
-    ) || die "Failed cloning ${FULL_URL} to ${PKG_DIR}"
+    ) || die "Failed cloning ${full_url} to ${pkg_dir}"
 
     (
         edo pushd edh_modules >/dev/null
-        for a in ../"${PKG_DIR}"/edh_modules/*; do
+        for a in ../"${pkg_dir}"/edh_modules/*; do
             b=$(basename "$a")
-            edo rm -rf "./$b"
+            [ -e "./$b" ] && edo rm -rf "./$b"
             edo ln -s "$a" "$b"
         done
         edo popd >/dev/null
     ) || die "Failed linking Edh module artifacts"
 
     (
-        edo pushd "${PKG_DIR}" >/dev/null
-        status_message "Building Haskell components for ${PKG_ID} ..."
+        edo pushd "${pkg_dir}" >/dev/null
+        status_message "Building Haskell components for ${pkg_id} ..."
         edo cabal build all
         edo popd >/dev/null
-    ) || red_message "Failed building Haskell components for ${PKG_ID}"
+    ) || red_message "Failed building Haskell components for ${pkg_id}"
 
     status_message "Installed $1 ."
+
+    unset full_url pkg_id pkg_dir a b
 }
 
 
@@ -206,12 +232,12 @@ install_pkg() {
 # @DESCRIPTION:
 # List local packages installed by epm
 list_pkgs() {
-    find edh-universe -name edh_modules | while read PKG_DIR1; do
-        PKG_DIR="${PKG_DIR1%/edh_modules}"
-        PKG_ID="${PKG_DIR#edh-universe/}"
+    find edh-universe -name edh_modules | while read pkg_dir1; do
+        pkg_dir="${pkg_dir1%/edh_modules}"
+        pkg_id="${pkg_dir#edh-universe/}"
         (
-            edo pushd "${PKG_DIR}" >/dev/null
-            echo "${PKG_ID} - $(git describe --all --dirty --broken)"
+            edo pushd "${pkg_dir}" >/dev/null
+            echo "${pkg_id} - $(git describe --all --dirty --broken)"
             if ${SHOW_REPO}; then
                 echo " - From: $(
                     git config remote.$(git config branch.$(git branch --format '%(refname:short)').remote).url
@@ -222,13 +248,55 @@ list_pkgs() {
             fi
             if ${SHOW_MODULES}; then
                 echo " - Modules:"
-                find edh_modules -type f | while read MODU; do
-                    echo "    ${MODU}"
+                find edh_modules -type f | while read modu; do
+                    echo "    ${modu}"
                 done
             fi
             edo popd >/dev/null
-        ) || die "Failed browsing package ${PKG_ID}"
+        ) || die "Failed browsing package ${pkg_id}"
     done
+
+    unset pkg_dir1 pkg_dir pkg_id modu
+}
+
+
+    #########################
+    #--[ Subcommand with ]--#
+    #########################
+
+# Run command in a package's directory
+with_pkg() {
+    pkg="$1"
+    shift 1
+
+    # implant `--overwrite-policy=always --installdir=${EPM_ROOT}/edh-universe/bin`
+    # to `cabal install` cmdl, magically !
+    if [ "$1" == "cabal" -a "$2" == "install" ]; then
+        shift 2
+        set -- cabal install --overwrite-policy=always --installdir=${EPM_ROOT}/edh-universe/bin "$@"
+    fi
+
+    pkg_dir=$(find edh-universe -name edh_modules | while read pkg_dir1; do
+        pkg_dir="${pkg_dir1%/edh_modules}"
+        pkg_id="${pkg_dir#edh-universe/}"
+        if [ "${pkg_id%/${pkg}}" != "${pkg_id}" ]; then
+            echo "${pkg_dir}"
+        fi
+    done)
+    if [ -n "${pkg_dir}" ]; then
+        pkg_id="${pkg_dir#edh-universe/}"
+        status_message " >> With Edh package [${pkg_id}] <<"
+        edo pushd "${pkg_dir}" >/dev/null
+        export EPM_ROOT
+        export PATH="${EPM_ROOT}"/edh-universe/bin:"${PATH}"
+        exec $*
+        edo popd >/dev/null
+        red_message "You've been kicked back."
+    else
+        warning_message "No such package: ${pkg}"
+    fi
+
+    unset pkg pkg_dir1 pkg_dir pkg_id
 }
 
 
@@ -238,16 +306,38 @@ list_pkgs() {
 
 # Update local packages installed by epm
 update_pkgs() {
-    find edh-universe -name edh_modules | while read PKG_DIR1; do
-        PKG_DIR="${PKG_DIR1%/edh_modules}"
-        PKG_ID="${PKG_DIR#edh-universe/}"
-        status_message "Updating ${PKG_ID}"
+    find edh-universe -name edh_modules | while read pkg_dir1; do
+        pkg_dir="${pkg_dir1%/edh_modules}"
+        pkg_id="${pkg_dir#edh-universe/}"
+
+        status_message "Updating ${pkg_id}"
+
         (
-            edo pushd "${PKG_DIR}" >/dev/null
+            edo pushd "${pkg_dir}" >/dev/null
             edo git pull
             edo popd >/dev/null
-        ) || die "Failed updating package ${PKG_ID}"
+        ) || die "Failed updating package ${pkg_id}"
+
+        (
+            find edh_modules -type l | while read modu_root; do
+                mr_path=$(readlink "${modu_root}")
+                if [ "${mr_path#../${pkg_dir1}/}" != "${mr_path}" ]; then
+                    edo rm "${modu_root}" || die "Failed unlink ${modu_root}"
+                fi
+            done
+
+            edo pushd edh_modules >/dev/null
+            for a in ../"${pkg_dir}"/edh_modules/*; do
+                b=$(basename "$a")
+                [ -e "./$b" ] && edo rm -rf "./$b"
+                edo ln -s "$a" "$b"
+            done
+            edo popd >/dev/null
+        ) || die "Failed re-linking Edh module artifacts"
+
     done
+
+    unset pkg_dir1 pkg_dir pkg_id modu_root mr_path a b
 }
 
 
@@ -260,29 +350,31 @@ update_pkgs() {
 # @DESCRIPTION:
 # Removes the specified packages installed by epm.
 rm_pkgs() {
-    find edh-universe -name edh_modules | while read PKG_DIR1; do
-        PKG_DIR="${PKG_DIR1%/edh_modules}"
-        PKG_ID="${PKG_DIR#edh-universe/}"
-        edo pushd "${PKG_DIR}" >/dev/null
-        PKG_REPO="$(
+    find edh-universe -name edh_modules | while read pkg_dir1; do
+        pkg_dir="${pkg_dir1%/edh_modules}"
+        pkg_id="${pkg_dir#edh-universe/}"
+        edo pushd "${pkg_dir}" >/dev/null
+        pkg_repo="$(
             git config remote.$(git config branch.$(git branch --format '%(refname:short)').remote).url
         )"
         edo popd >/dev/null
-        for NAME2RM in "$@"; do
-            if [ "${PKG_ID%/${NAME2RM}}" != "${PKG_ID}" ]; then
-                if ask_for_confirmation "Remove [${PKG_ID}] from ${PKG_REPO} ?"; then
-                    status_message "Removing ${PKG_DIR} ..."
-                    find edh_modules -type l | while read MODU_ROOT; do
-                        MR_PATH=$(readlink "${MODU_ROOT}")
-                        if [ "${MR_PATH#../${PKG_DIR1}/}" != "${MR_PATH}" ]; then
-                            edo rm "${MODU_ROOT}" || die "Failed unlink ${MODU_ROOT}"
+        for name2rm in "$@"; do
+            if [ "${pkg_id%/${name2rm}}" != "${pkg_id}" ]; then
+                if ask_for_confirmation "Remove [${pkg_id}] from ${pkg_repo} ?"; then
+                    status_message "Removing ${pkg_dir} ..."
+                    find edh_modules -type l | while read modu_root; do
+                        mr_path=$(readlink "${modu_root}")
+                        if [ "${mr_path#../${pkg_dir1}/}" != "${mr_path}" ]; then
+                            edo rm "${modu_root}" || die "Failed unlink ${modu_root}"
                         fi
                     done
-                    edo rm -rf "${PKG_DIR}"
+                    edo rm -rf "${pkg_dir}"
                 fi
             fi
         done
     done
+
+    unset pkg_dir1 pkg_dir pkg_id pkg_repo name2rm modu_root mr_path
 }
 
 
@@ -465,9 +557,9 @@ update"
     *) ## startup tasks ##
 
        (
-        test -w edh_modules || edo mkdir edh_modules
-        test -w edh-universe/bin || edo mkdir -p edh-universe/bin
-       ) || die "Can NOT create local directories in $(pwd)"
+        [ -w edh_modules ]      || edo mkdir    edh_modules
+        [ -w edh-universe/bin ] || edo mkdir -p edh-universe/bin
+       ) || die "Can NOT create local directories in ${EPM_ROOT}"
 
        # check for available commands
        missing_commands="$(check_required_commands )"
@@ -514,6 +606,14 @@ update"
            done
            list_pkgs
            break;;
+       with|w)
+            shift 1
+            [ $# -lt 2 ] && with_usage
+            case $1 in
+                -h|--help) with_usage;;
+            esac
+            with_pkg "$@"
+            break;;
        update|u)
            update_pkgs
            break;;
@@ -529,7 +629,7 @@ update"
                       shift 1;;
                esac
            done
-           rm_pkgs ${PKGS2RM}
+           [ -n "${PKGS2RM}" ] && rm_pkgs ${PKGS2RM} || rm_usage
            break;;
        *) usage;;
        esac

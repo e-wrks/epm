@@ -335,29 +335,34 @@ FLAGS:
     # @DESCRIPTION:
     # List local packages installed by epm
     list_pkgs() { (
-        cd "${EPM_HOME}"
-        find edh-universe -name edh_modules | while read -r pkg_dir1; do
-            pkg_dir="${pkg_dir1%/edh_modules}"
-            pkg_id="${pkg_dir#edh-universe/}"
-            (
-                edo pushd "${pkg_dir}" >/dev/null
-                echo "${pkg_id} - $(git describe --all --dirty --broken)"
-                if ${SHOW_REPO}; then
-                    echo " - From: $(
-                        git config remote.$(git config branch.$(git branch --format '%(refname:short)').remote).url
-                    )"
-                fi
-                if ${SHOW_BRANCH}; then
-                    echo " - Branch: $(edo git branch -vv)"
-                fi
-                if ${SHOW_MODULES}; then
-                    echo " - Modules:"
-                    find edh_modules -type f | while read -r modu; do
-                        echo "    ${modu}"
-                    done
-                fi
-                edo popd >/dev/null
-            ) || die "Failed browsing package ${pkg_id}"
+        IFS=: ps=(${EPM_PATH})
+        for p in ${ps[@]}; do
+            EPM_HOME=${p%%/edh-universe/bin}
+            status_message "  > EPM home at [${EPM_HOME}] <"
+            cd "${EPM_HOME}"
+            find edh-universe -name edh_modules | while read -r pkg_dir1; do
+                pkg_dir="${pkg_dir1%/edh_modules}"
+                pkg_id="${pkg_dir#edh-universe/}"
+                (
+                    edo pushd "${pkg_dir}" >/dev/null
+                    echo "${pkg_id} - $(git describe --all --dirty --broken)"
+                    if ${SHOW_REPO}; then
+                        echo " - From: $(
+                            git config remote.$(git config branch.$(git branch --format '%(refname:short)').remote).url
+                        )"
+                    fi
+                    if ${SHOW_BRANCH}; then
+                        echo " - Branch: $(edo git branch -vv)"
+                    fi
+                    if ${SHOW_MODULES}; then
+                        echo " - Modules:"
+                        find edh_modules -type f | while read -r modu; do
+                            echo "    ${modu}"
+                        done
+                    fi
+                    edo popd >/dev/null
+                ) || die "Failed browsing package ${pkg_id}"
+            done
         done
     ); }
 
@@ -366,38 +371,41 @@ FLAGS:
     #########################
 
     # Run command in a package's directory
-    with_pkg() {
+    with_pkg() { (
         pkg="$1"
         shift 1
+        IFS=: ps=(${EPM_PATH})
+        for p in ${ps[@]}; do
+            EPM_HOME=${p%%/edh-universe/bin}
+            cd "${EPM_HOME}"
+            pkg_dir=$(
+                find edh-universe -name edh_modules | while read -r pkg_dir1; do
+                    pkg_dir="${pkg_dir1%/edh_modules}"
+                    pkg_id="${pkg_dir#edh-universe/}"
+                    [ "${pkg_id%/${pkg}}" != "${pkg_id}" ] && echo "${pkg_dir}"
+                done
+            )
+            if [ -d "${pkg_dir}" ]; then
+                # implant `--overwrite-policy=always --installdir=${EPM_HOME}/edh-universe/bin`
+                # to `cabal install` cmdl, magically !
+                if [ "$1" == "cabal" -a "$2" == "install" ]; then
+                    shift 2
+                    set -- cabal install --overwrite-policy=always --installdir=${EPM_HOME}/edh-universe/bin "$@"
+                elif [ $# -lt 1 ]; then
+                    set -- bash
+                fi
 
-        # implant `--overwrite-policy=always --installdir=${EPM_HOME}/edh-universe/bin`
-        # to `cabal install` cmdl, magically !
-        if [ "$1" == "cabal" -a "$2" == "install" ]; then
-            shift 2
-            set -- cabal install --overwrite-policy=always --installdir=${EPM_HOME}/edh-universe/bin "$@"
-        elif [ $# -lt 1 ]; then
-            set -- bash
-        fi
-
-        pkg_dir=$(find edh-universe -name edh_modules | while read -r pkg_dir1; do
-            pkg_dir="${pkg_dir1%/edh_modules}"
-            pkg_id="${pkg_dir#edh-universe/}"
-            [ "${pkg_id%/${pkg}}" != "${pkg_id}" ] && echo "${pkg_dir}"
-        done)
-        if [ -d "${pkg_dir}" ]; then
-            pkg_id="${pkg_dir#edh-universe/}"
-            status_message " >> With Edh package [${pkg_id}] <<"
-            edo pushd "${pkg_dir}" >/dev/null
-            export PATH="${EPM_PATH}":"${PATH}"
-            exec $*
-            edo popd >/dev/null
-            red_message "You've been kicked back."
-        else
-            warning_message "No such package: ${pkg}"
-        fi
-
-        unset pkg pkg_dir pkg_id
-    }
+                pkg_id="${pkg_dir#edh-universe/}"
+                status_message " >> With Edh package [${pkg_id}] in EPM home [${EPM_HOME}] <<"
+                edo pushd "${pkg_dir}" >/dev/null
+                export PATH="${EPM_PATH}":"${PATH}"
+                exec $*
+                edo popd >/dev/null
+                red_message "You've been kicked back."
+            fi
+        done
+        warning_message "No such package [${pkg}] in any effective EPM home"
+    ); }
 
     #########################
     #--[ Subcommand run ]--#

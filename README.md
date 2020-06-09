@@ -67,8 +67,29 @@ epm --help
 
 ## Features
 
-Currently it's very basic, only able to install/remove/update single **git**
-repository based packages.
+```console
+epm 0.1.0 >> Edh Package Manager <<
+
+USAGE:
+    epm [FLAGS] <SUBCOMMAND>
+
+FLAGS:
+    -v, --verbose         Enable verbose output
+    -h, --help            Prints help information
+    -V, --version         Prints version information
+    -B, --base <URL>      URL prefix for upstream package repositories
+                    default:  https://github.com/e-wrks
+                    environment variable EPM_REPO_BASE overrides above
+
+SUBCOMMANDS:
+    init                  Initialize current working directory as an EPM home
+    install    | i        Install new, or change branches of existing packages
+    list       | l        List homes and packages
+    update     | u        Pull upstream changes of packages from tracked branches
+    with       | w        Run command within the directory of a package
+    run | exec | x        Run command with all effective EPM home's bin on $PATH
+    rm                    Remove specified package(s) from nearest EPM home
+```
 
 ## Roadmap
 

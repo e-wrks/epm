@@ -22,8 +22,8 @@ in the future, but stays merely the **epm**
 - [Usage](#usage)
   - [Create a new EPM home](#create-a-new-epm-home)
   - [Develop your Edh projects](#develop-your-edh-projects)
+    - [Code Editor for Đ (Edh)](#code-editor-for-đ-edh)
   - [Build Edh interpreters](#build-edh-interpreters)
-- [Code Editor for Đ (Edh)](#code-editor-for-đ-edh)
 - [Roadmap](#roadmap)
 
 ## Prerequisite
@@ -196,6 +196,18 @@ home and maintained by **epm**, you create folder structures beside them to
 organize your **Edh** related stuff, maybe just simple **Edh** scripts,
 full fledged interpreter packages, or database server and applications
 atop [HasDB](https://github.com/e-wrks/hasdb).
+
+#### Code Editor for Đ (Edh)
+
+The officially recommended code editor (and **IDE**) for
+[Đ (Edh)](https://github.com/e-wrks/edh) is:
+
+[Visual Studio Code](https://code.visualstudio.com) with
+[Edh Language Pack](https://marketplace.visualstudio.com/items?itemName=ComplYue.edh-vscode-pack)
+
+There you go with decent syntax highlighting and automatic code formatting.
+
+Semantic hinting and debugging features will come along.
 
 ### Build Edh interpreters
 
@@ -399,18 +411,6 @@ $ epm run nedh
 ```
 
 </details>
-
-## Code Editor for Đ (Edh)
-
-The officially recommended code editor (and **IDE**) for
-[Đ (Edh)](https://github.com/e-wrks/edh) is:
-
-[Visual Studio Code](https://code.visualstudio.com) with
-[Edh Language Pack](https://marketplace.visualstudio.com/items?itemName=ComplYue.edh-vscode-pack)
-
-There you go with decent syntax highlighting and automatic code formatting.
-
-Semantic hinting and debugging features will come along.
 
 ## Roadmap
 

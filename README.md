@@ -20,6 +20,7 @@ in the future, but stays merely the
   - [UNIX Toolchain](#unix-toolchain)
 - [Installation](#installation)
 - [Usage](#usage)
+- [Code Editor for Đ (Edh)](#code-editor-for-đ-edh)
 - [Roadmap](#roadmap)
 
 ## Prerequisite
@@ -114,7 +115,7 @@ FLAGS:
     -h, --help            Prints help information
     -V, --version         Prints version information
     -B, --base <URL>      URL prefix for upstream package repositories
-                     default:  https://gogs.dw/e-wrks
+                     default:  https://github.com/e-wrks
                      environment variable EPM_REPO_BASE overrides above
 
 SUBCOMMANDS:
@@ -313,9 +314,21 @@ Completed 3 action(s).
 (net)Đ:
 ```
 
+## Code Editor for Đ (Edh)
+
+The officially recommended code editor (and **IDE**) for
+[Đ (Edh)](https://github.com/e-wrks/edh) is:
+
+[Visual Studio Code](https://code.visualstudio.com) with
+[Edh Language Pack](https://marketplace.visualstudio.com/items?itemName=ComplYue.edh-vscode-pack)
+
+There you go with decent syntax highlighting and automatic code formatting.
+
+Semantic hinting and debugging features will come along.
+
 ## Roadmap
 
-Features of priority to come next:
+Features of priority to come next for **EPM**:
 
 - Automatic dependency installation
 

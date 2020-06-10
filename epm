@@ -10,7 +10,7 @@
     # @VARIABLE: VERSION
     # @DESCRIPTION:
     # Version of this script.
-    VERSION=0.1.6
+    VERSION=0.1.7
 
     # Default base URL for short package names
     BASE_URL=${EPM_REPO_BASE:-"https://github.com/e-wrks"}
@@ -85,7 +85,7 @@
     }
 
     update_cabal_packages() { (
-        cd "${EPM_HOME}"
+        cd "${EPM_HOME}/edh-universe" || die "Bad EPM home [${EPM_HOME}]"
         (
             if [ -f "cabal.project" ]; then
                 while IFS= read -r line; do
@@ -100,7 +100,7 @@
             echo '-- FOLLOWING CONTENTS GONNA BE OVERWRITTEN BY EPM --'
             echo ''
             echo 'packages:'
-            find edh-universe -name \*.cabal |
+            find . -name \*.cabal |
                 fgrep -v '/dist-newstyle/' | fgrep -v '/.stack-work/' |
                 while read -r fn; do
                     echo "  $(dirname "${fn}")"
@@ -110,7 +110,7 @@
     ); }
 
     update_stack_packages() { (
-        cd "${EPM_HOME}"
+        cd "${EPM_HOME}/edh-universe" || die "Bad EPM home [${EPM_HOME}]"
         (
             if [ -f "stack.yaml" ]; then
                 while IFS= read -r line; do
@@ -125,9 +125,9 @@
             fi
             echo '## FOLLOWING CONTENTS GONNA BE OVERWRITTEN BY EPM ##'
             echo ''
-            echo "local-bin-path: edh-universe/bin"
+            echo "local-bin-path: ${EPM_HOME}/edh-universe/bin"
             echo 'packages:'
-            find edh-universe -name \*.cabal |
+            find . -name \*.cabal |
                 fgrep -v '/dist-newstyle/' | fgrep -v '/.stack-work/' |
                 while read -r fn; do
                     echo " - $(dirname "${fn}")"
@@ -173,12 +173,12 @@ USAGE:
     ${SCRIPT} [FLAGS] <SUBCOMMAND>
 
 FLAGS:
-    -v, --verbose         Enable verbose output
-    -h, --help            Prints help information
-    -V, --version         Prints version information
-    -B, --base <URL>      URL prefix for upstream package repositories
-                     default:  ${BASE_URL}
-                     environment variable EPM_REPO_BASE overrides above
+    -v, --verbose      Enable verbose output
+    -h, --help         Prints help information
+    -V, --version      Prints version information
+    -B, --base <URL>   URL prefix for upstream package repositories
+                         default:  ${BASE_URL}
+                         environment variable EPM_REPO_BASE overrides above
 
 SUBCOMMANDS:
     init               Initialize current working directory as an EPM home
@@ -263,15 +263,15 @@ EXAMPLES:
 Run command within the directory of a package
 
 USAGE:
-    ${SCRIPT} with [FLAGS] <PKG> [ <CMD> [ <ARG1> <ARG2> ... ] ]
+    ${SCRIPT} with [FLAGS] <PKG> [ <CMD> [ <ARGn> ... ] ]
 
 FLAGS:
     -h, --help              Prints help information
 
 ARGS:
     <PKG>                   E.g. \"nedh\" or \"sedh\"
-    <CMD> [ <ARGn> ... ]    E.g. \"cabal run edhi\" or \"caban install edhi\"
-                         default: bash
+    <CMD> [ <ARGn> ... ]    E.g. \"git reset --hard\" or \"git diff\"
+                              default: bash
 ")
         exit 1
     }
@@ -285,13 +285,13 @@ ARGS:
 Run command with all effective EPM home's bin on \$PATH
 
 USAGE:
-    ${SCRIPT} run [FLAGS] <CMD> [ <ARG1> <ARG2> ... ]
+    ${SCRIPT} run [FLAGS] <CMD> [ <ARGn> ... ]
 
 FLAGS:
     -h, --help              Prints help information
 
 ARGS:
-    <CMD> [ <ARGn> ... ]    E.g. edhi or bash
+    <CMD> [ <ARGn> ... ]    E.g. \"edhi\" or \"cabal install all:exes\"
 ")
         exit 1
     }
@@ -325,13 +325,30 @@ ARGS:
 Show locally installed packages
 
 USAGE:
-    ${SCRIPT} list
+    ${SCRIPT} list [FLAGS]
 
 FLAGS:
     -h, --help             Prints help information
     -u, --upstream         Show repository URL
     -b, --branch           Show branches
     -m, --modules          List Edh modules
+")
+        exit 1
+    }
+
+    # @FUNCTION: update_usage
+    # @DESCRIPTION:
+    # Print the help message for 'epm update' to STDERR
+    # and exit the script with status code 1.
+    update_usage() {
+        (echo >&2 "epm-update
+Pull upstream changes of packages from tracked branches
+
+USAGE:
+    ${SCRIPT} update [FLAGS]
+
+FLAGS:
+    -h, --help             Prints help information
 ")
         exit 1
     }
@@ -858,6 +875,8 @@ update"
                 break
                 ;;
             update | up | u)
+                shift 1
+                [ $# -gt 0 ] && update_usage
                 MODIFYING_EPM_HOME=true
                 locate_epm_home || die "No modifiable EPM home to update"
                 cd "${EPM_HOME}"

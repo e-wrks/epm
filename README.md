@@ -10,9 +10,9 @@ packages from different parties, and work well.
 semi-automatic in dealing with that, and ought to go fully automatic as it
 evolves.
 
-**EPM** may evolve to have some <a title="Graphical User Interface">GUI</a>
-in the future, but stays with the mere
-<a title="Command Line Interface">CLI</a> **epm** at the moment.
+**EPM** may evolve to have some <b title="Graphical User Interface">GUI</b>
+in the future, but stays merely the
+<b title="Command Line Interface">CLI</b> **epm** at the moment.
 
 - [What is EPM](#what-is-epm)
 - [Prerequisite](#prerequisite)

@@ -335,11 +335,13 @@ $
 
 Then you can run any of them:
 
+<details><summary>
+
 ```bash
 $ epm run edhi
 ```
 
-<details><summary>...</summary>
+</summary>
 
 ```bash
  >> Managing packages at EPM home [/Users/cyue/epm-home] <<
@@ -356,11 +358,13 @@ $ epm run edhi
 
 </details>
 
+<details><summary>
+
 ```bash
 $ epm run nedh
 ```
 
-<details><summary>...</summary>
+</summary>
 
 ```bash
  >> Managing packages at EPM home [/Users/cyue/epm-home] <<

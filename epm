@@ -10,7 +10,7 @@
     # @VARIABLE: VERSION
     # @DESCRIPTION:
     # Version of this script.
-    VERSION=0.1.7
+    VERSION=0.1.8
 
     # Default base URL for short package names
     BASE_URL=${EPM_REPO_BASE:-"https://github.com/e-wrks"}
@@ -416,7 +416,7 @@ FLAGS:
             edo pushd edh_modules >/dev/null
             for a in ../"${pkg_dir}"/edh_modules/*; do
                 b=$(basename "$a")
-                [ -e "./$b" ] && edo rm -rf "./$b"
+                edo rm -rf "./$b" 2>/dev/null
                 edo ln -s "$a" "$b"
             done
             edo popd >/dev/null
@@ -569,7 +569,7 @@ FLAGS:
                     edo pushd edh_modules >/dev/null
                     for a in ../"${pkg_dir}"/edh_modules/*; do
                         b=$(basename "$a")
-                        [ -e "./$b" ] && edo rm -rf "./$b"
+                        edo rm -rf "./$b" 2>/dev/null
                         edo ln -s "$a" "$b"
                     done
                     edo popd >/dev/null

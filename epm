@@ -10,7 +10,7 @@
     # @VARIABLE: VERSION
     # @DESCRIPTION:
     # Version of this script.
-    VERSION=0.1.8
+    VERSION=0.1.9
 
     # Default base URL for short package names
     BASE_URL=${EPM_REPO_BASE:-"https://github.com/e-wrks"}
@@ -84,8 +84,41 @@
         export EPM_PATH EPM_HOME
     }
 
-    update_cabal_packages() { (
+    add_cabal_packages() { (
         cd "${EPM_HOME}/edh-universe" || die "Bad EPM home [${EPM_HOME}]"
+        find . -name \*.cabal |
+            fgrep -v '/dist-newstyle/' | fgrep -v '/.stack-work/' |
+            while read -r fn; do
+                shadowed=0
+                for dhome in "${DESCENDANT_HOMES}"; do
+                    [ -e "${dhome}"/edh-universe/"${fn#./}" ] && shadowed=1
+                done
+                if [ "${shadowed}" == "0" ]; then
+                    pkg_dir="$(dirname "${fn}")"
+                    echo "  ${EPM_HOME}/edh-universe/${pkg_dir#./}"
+                fi
+            done
+    ); }
+
+    add_stack_packages() { (
+        cd "${EPM_HOME}/edh-universe" || die "Bad EPM home [${EPM_HOME}]"
+        find . -name \*.cabal |
+            fgrep -v '/dist-newstyle/' | fgrep -v '/.stack-work/' |
+            while read -r fn; do
+                shadowed=0
+                for dhome in "${DESCENDANT_HOMES}"; do
+                    [ -e "${dhome}"/edh-universe/"${fn#./}" ] && shadowed=1
+                done
+                if [ "${shadowed}" == "0" ]; then
+                    pkg_dir="$(dirname "${fn}")"
+                    echo " - ${EPM_HOME}/edh-universe/${pkg_dir#./}"
+                fi
+            done
+    ); }
+
+    update_project_packages() {
+        cd "${EPM_HOME}/edh-universe" || die "Bad EPM home [${EPM_HOME}]"
+
         (
             if [ -f "cabal.project" ]; then
                 while IFS= read -r line; do
@@ -100,17 +133,25 @@
             echo '-- FOLLOWING CONTENTS GONNA BE OVERWRITTEN BY EPM --'
             echo ''
             echo 'packages:'
-            find . -name \*.cabal |
-                fgrep -v '/dist-newstyle/' | fgrep -v '/.stack-work/' |
-                while read -r fn; do
-                    echo "  $(dirname "${fn}")"
-                done
+
+            export DESCENDANT_HOMES=''
+            add_cabal_packages
+            export DESCENDANT_HOMES="${EPM_HOME}"
+            process_parent_homes_from() { (
+                parent_dir=$(dirname "$1")
+                if [ "${parent_dir}" == "$1" ]; then
+                    return 0
+                fi
+                if [ -x "${parent_dir}"/edh-universe/bin ]; then
+                    EPM_HOME="${parent_dir}" add_cabal_packages
+                    export DESCENDANT_HOMES="${DESCENDANT_HOMES} ${parent_dir}"
+                fi
+                process_parent_homes_from "${parent_dir}"
+            ); }
+            process_parent_homes_from "${EPM_HOME}"
         ) >"_new_cabal.project"
         edo mv -f "_new_cabal.project" "cabal.project"
-    ); }
 
-    update_stack_packages() { (
-        cd "${EPM_HOME}/edh-universe" || die "Bad EPM home [${EPM_HOME}]"
         (
             if [ -f "stack.yaml" ]; then
                 while IFS= read -r line; do
@@ -127,14 +168,25 @@
             echo ''
             echo "local-bin-path: ${EPM_HOME}/edh-universe/bin"
             echo 'packages:'
-            find . -name \*.cabal |
-                fgrep -v '/dist-newstyle/' | fgrep -v '/.stack-work/' |
-                while read -r fn; do
-                    echo " - $(dirname "${fn}")"
-                done
+
+            export DESCENDANT_HOMES=''
+            add_stack_packages
+            export DESCENDANT_HOMES="${EPM_HOME}"
+            process_parent_homes_from() { (
+                parent_dir=$(dirname "$1")
+                if [ "${parent_dir}" == "$1" ]; then
+                    return 0
+                fi
+                if [ -x "${parent_dir}"/edh-universe/bin ]; then
+                    EPM_HOME="${parent_dir}" add_stack_packages
+                    export DESCENDANT_HOMES="${DESCENDANT_HOMES} ${parent_dir}"
+                fi
+                process_parent_homes_from "${parent_dir}"
+            ); }
+            process_parent_homes_from "${EPM_HOME}"
         ) >"_new_stack.yaml"
         edo mv -f "_new_stack.yaml" "stack.yaml"
-    ); }
+    }
 
     # whether we tend to create an EPM home
     CREATING_EPM_HOME=false
@@ -383,8 +435,7 @@ FLAGS:
                 ;;
             esac
         done
-        update_cabal_packages
-        update_stack_packages
+        update_project_packages
     ); }
 
     # @FUNCTION: install_pkg
@@ -620,8 +671,7 @@ FLAGS:
                     fi
                 done
             done
-        update_cabal_packages
-        update_stack_packages
+        update_project_packages
     ); }
 
     ###########################

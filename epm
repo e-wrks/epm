@@ -10,7 +10,7 @@
     # @VARIABLE: VERSION
     # @DESCRIPTION:
     # Version of this script.
-    VERSION=0.1.9
+    VERSION=0.1.10
 
     # Default base URL for short package names
     BASE_URL=${EPM_REPO_BASE:-"https://github.com/e-wrks"}
@@ -161,7 +161,7 @@
             else
                 echo ''
                 echo "# Please change the resolver and other Stack settings per your needs"
-                echo 'resolver: lts-15.15'
+                echo 'resolver: lts-16.11'
                 echo ''
             fi
             echo '## FOLLOWING CONTENTS GONNA BE OVERWRITTEN BY EPM ##'

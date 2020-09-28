@@ -10,7 +10,7 @@
     # @VARIABLE: VERSION
     # @DESCRIPTION:
     # Version of this script.
-    VERSION=0.1.10
+    VERSION=0.2.0
 
     # Default base URL for short package names
     BASE_URL=${EPM_REPO_BASE:-"https://github.com/e-wrks"}
@@ -581,6 +581,40 @@ FLAGS:
             # implant `--overwrite-policy=always --installdir=${EPM_HOME}/edh-universe/bin`
             # to `cabal install` cmdl, magically !
             set -- cabal install --overwrite-policy=always --installdir=${EPM_HOME}/edh-universe/bin "$@"
+        fi
+
+        collect_py_path() {
+            if [ ! -x "$1/edh-universe" ]; then
+                echo "${PYP}"
+                return 1 # reached an inaccessible epm home, stop here
+            fi
+            PYP=$(find "$1/edh-universe" -type d -name host.py | (
+                while read -r pyr; do
+                    if [ -n "${PYP}" ]; then
+                        PYP="${PYP}":"${pyr}"
+                    else
+                        PYP="${pyr}"
+                    fi
+                done
+                echo "${PYP}"
+            ))
+
+            parent_dir=$(dirname "$1")
+            if [ "${parent_dir}" == "$1" ]; then
+                echo "${PYP}"
+                return 0
+            fi
+
+            export PYP
+            collect_py_path "${parent_dir}"
+        }
+        PYP=$(PYP="" collect_py_path "${EPM_HOME}")
+        if [ -n "${PYP}" ]; then
+            if [ -n "${PYTHONPATH}" ]; then
+                export PYTHONPATH="${PYP}":"${PYTHONPATH}"
+            else
+                export PYTHONPATH="${PYP}"
+            fi
         fi
 
         export PATH="${EPM_PATH}":"${PATH}"

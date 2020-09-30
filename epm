@@ -10,7 +10,7 @@
     # @VARIABLE: VERSION
     # @DESCRIPTION:
     # Version of this script.
-    VERSION=0.2.1
+    VERSION=0.2.2
 
     # Default base URL for short package names
     BASE_URL=${EPM_REPO_BASE:-"https://github.com/e-wrks"}
@@ -120,73 +120,77 @@
     update_project_packages() {
         cd "${EPM_HOME}/edh-universe" || die "Bad EPM home [${EPM_HOME}]"
 
-        (
-            if [ -f "cabal.project" ]; then
-                while IFS= read -r line; do
-                    [ "${line}" == '-- FOLLOWING CONTENTS GONNA BE OVERWRITTEN BY EPM --' ] && break
-                    echo "$line"
-                done <"cabal.project"
-            else
+        if [ ! -e "avoid-cabal.project" ]; then
+            (
+                if [ -f "cabal.project" ]; then
+                    while IFS= read -r line; do
+                        [ "${line}" == '-- FOLLOWING CONTENTS GONNA BE OVERWRITTEN BY EPM --' ] && break
+                        echo "$line"
+                    done <"cabal.project"
+                else
+                    echo ''
+                    echo "-- Please change Cabal project settings per your needs"
+                    echo ''
+                fi
+                echo '-- FOLLOWING CONTENTS GONNA BE OVERWRITTEN BY EPM --'
                 echo ''
-                echo "-- Please change Cabal project settings per your needs"
-                echo ''
-            fi
-            echo '-- FOLLOWING CONTENTS GONNA BE OVERWRITTEN BY EPM --'
-            echo ''
-            echo 'packages:'
+                echo 'packages:'
 
-            export DESCENDANT_HOMES=''
-            add_cabal_packages
-            export DESCENDANT_HOMES="${EPM_HOME}"
-            process_parent_homes_from() { (
-                parent_dir=$(dirname "$1")
-                if [ "${parent_dir}" == "$1" ]; then
-                    return 0
-                fi
-                if [ -x "${parent_dir}"/edh-universe/bin ]; then
-                    EPM_HOME="${parent_dir}" add_cabal_packages
-                    export DESCENDANT_HOMES="${DESCENDANT_HOMES} ${parent_dir}"
-                fi
-                process_parent_homes_from "${parent_dir}"
-            ); }
-            process_parent_homes_from "${EPM_HOME}"
-        ) >"_new_cabal.project"
-        edo mv -f "_new_cabal.project" "cabal.project"
+                export DESCENDANT_HOMES=''
+                add_cabal_packages
+                export DESCENDANT_HOMES="${EPM_HOME}"
+                process_parent_homes_from() { (
+                    parent_dir=$(dirname "$1")
+                    if [ "${parent_dir}" == "$1" ]; then
+                        return 0
+                    fi
+                    if [ -x "${parent_dir}"/edh-universe/bin ]; then
+                        EPM_HOME="${parent_dir}" add_cabal_packages
+                        export DESCENDANT_HOMES="${DESCENDANT_HOMES} ${parent_dir}"
+                    fi
+                    process_parent_homes_from "${parent_dir}"
+                ); }
+                process_parent_homes_from "${EPM_HOME}"
+            ) >"_new_cabal.project"
+            edo mv -f "_new_cabal.project" "cabal.project"
+        fi
 
-        (
-            if [ -f "stack.yaml" ]; then
-                while IFS= read -r line; do
-                    [ "${line}" == '## FOLLOWING CONTENTS GONNA BE OVERWRITTEN BY EPM ##' ] && break
-                    echo "$line"
-                done <"stack.yaml"
-            else
+        if [ ! -e "avoid-stack.yaml" ]; then
+            (
+                if [ -f "stack.yaml" ]; then
+                    while IFS= read -r line; do
+                        [ "${line}" == '## FOLLOWING CONTENTS GONNA BE OVERWRITTEN BY EPM ##' ] && break
+                        echo "$line"
+                    done <"stack.yaml"
+                else
+                    echo ''
+                    echo "# Please change the resolver and other Stack settings per your needs"
+                    echo 'resolver: lts-16.11'
+                    echo ''
+                fi
+                echo '## FOLLOWING CONTENTS GONNA BE OVERWRITTEN BY EPM ##'
                 echo ''
-                echo "# Please change the resolver and other Stack settings per your needs"
-                echo 'resolver: lts-16.11'
-                echo ''
-            fi
-            echo '## FOLLOWING CONTENTS GONNA BE OVERWRITTEN BY EPM ##'
-            echo ''
-            echo "local-bin-path: ${EPM_HOME}/edh-universe/bin"
-            echo 'packages:'
+                echo "local-bin-path: ${EPM_HOME}/edh-universe/bin"
+                echo 'packages:'
 
-            export DESCENDANT_HOMES=''
-            add_stack_packages
-            export DESCENDANT_HOMES="${EPM_HOME}"
-            process_parent_homes_from() { (
-                parent_dir=$(dirname "$1")
-                if [ "${parent_dir}" == "$1" ]; then
-                    return 0
-                fi
-                if [ -x "${parent_dir}"/edh-universe/bin ]; then
-                    EPM_HOME="${parent_dir}" add_stack_packages
-                    export DESCENDANT_HOMES="${DESCENDANT_HOMES} ${parent_dir}"
-                fi
-                process_parent_homes_from "${parent_dir}"
-            ); }
-            process_parent_homes_from "${EPM_HOME}"
-        ) >"_new_stack.yaml"
-        edo mv -f "_new_stack.yaml" "stack.yaml"
+                export DESCENDANT_HOMES=''
+                add_stack_packages
+                export DESCENDANT_HOMES="${EPM_HOME}"
+                process_parent_homes_from() { (
+                    parent_dir=$(dirname "$1")
+                    if [ "${parent_dir}" == "$1" ]; then
+                        return 0
+                    fi
+                    if [ -x "${parent_dir}"/edh-universe/bin ]; then
+                        EPM_HOME="${parent_dir}" add_stack_packages
+                        export DESCENDANT_HOMES="${DESCENDANT_HOMES} ${parent_dir}"
+                    fi
+                    process_parent_homes_from "${parent_dir}"
+                ); }
+                process_parent_homes_from "${EPM_HOME}"
+            ) >"_new_stack.yaml"
+            edo mv -f "_new_stack.yaml" "stack.yaml"
+        fi
     }
 
     # whether we tend to create an EPM home

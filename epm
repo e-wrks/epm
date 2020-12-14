@@ -10,7 +10,7 @@
     # @VARIABLE: VERSION
     # @DESCRIPTION:
     # Version of this script.
-    VERSION=0.2.3
+    VERSION=0.2.4
 
     # Default base URL for short package names
     BASE_URL=${EPM_REPO_BASE:-"https://github.com/e-wrks"}
@@ -581,7 +581,7 @@ FLAGS:
                 status_message " >> With Edh package [${pkg_id}] in EPM home [${EPM_HOME}] <<"
                 edo pushd "${pkg_dir}" >/dev/null
                 export PATH="${EPM_PATH}":"${PATH}"
-                exec $*
+                exec "$@"
                 edo popd >/dev/null
                 red_message "You've been kicked back."
             fi
@@ -622,7 +622,7 @@ FLAGS:
         fi
 
         export PATH="${EPM_PATH}":"${PATH}"
-        exec $*
+        exec "$@"
         red_message "You've been kicked back."
     }
 

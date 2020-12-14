@@ -469,6 +469,18 @@ FLAGS:
         ) || die "Failed cloning ${full_url} to ${pkg_dir}"
 
         (
+            edo pushd edh-universe/bin >/dev/null
+            for a in ../../"${pkg_dir}"/bin/*; do
+                # deal with empty dir without nullglob
+                [ ! -e "$a" ] && continue
+                b=$(basename "$a")
+                edo rm -rf "./$b" 2>/dev/null
+                edo ln -s "$a" "$b"
+            done
+            edo popd >/dev/null
+        ) || die "Failed linking scripting artifacts"
+
+        (
             edo pushd edh_modules >/dev/null
             for a in ../"${pkg_dir}"/edh_modules/*; do
                 # deal with empty dir without nullglob
@@ -646,6 +658,25 @@ FLAGS:
                     edo git pull
                     edo popd >/dev/null
                 ) || die "Failed updating package ${pkg_id}"
+
+                (
+                    find edh-universe/bin -type l | while read -r script_art; do
+                        mr_path=$(readlink "${script_art}")
+                        if [ "${mr_path#../${pkg_dir1}/}" != "${mr_path}" ]; then
+                            edo rm "${script_art}" || die "Failed unlink ${script_art}"
+                        fi
+                    done
+
+                    edo pushd edh-universe/bin >/dev/null
+                    for a in ../../"${pkg_dir}"/bin/*; do
+                        # deal with empty dir without nullglob
+                        [ ! -e "$a" ] && continue
+                        b=$(basename "$a")
+                        edo rm -rf "./$b" 2>/dev/null
+                        edo ln -s "$a" "$b"
+                    done
+                    edo popd >/dev/null
+                ) || die "Failed re-linking Edh module artifacts"
 
                 (
                     find edh_modules -type l | while read -r modu_root; do

@@ -655,7 +655,9 @@ FLAGS:
 
                 (
                     edo pushd "${pkg_dir}" >/dev/null
-                    edo git pull
+                    if [ -n "$(git config branch.$(git name-rev --name-only HEAD).merge)" ]; then
+                        git pull
+                    fi
                     edo popd >/dev/null
                 ) || die "Failed updating package ${pkg_id}"
 

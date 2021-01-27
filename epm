@@ -10,7 +10,7 @@
     # @VARIABLE: VERSION
     # @DESCRIPTION:
     # Version of this script.
-    VERSION=0.2.5
+    VERSION=0.2.6
 
     # Default base URL for short package names
     BASE_URL=${EPM_REPO_BASE:-"https://github.com/e-wrks"}
@@ -279,7 +279,6 @@ FLAGS:
 ARGS:
     -b <branch>           Branch to checkout and track
                 only applies to the immediately following package
-                default: master
     -B, --base <URL>      URL prefix for upstream package repositories
                     default:  ${BASE_URL}
                     environment variable EPM_REPO_BASE overrides above
@@ -310,7 +309,6 @@ FLAGS:
 ARGS:
     -b <branch>           Branch to checkout and track
                 only applies to the immediately following package
-                default: master
     -B, --base <URL>      URL prefix for upstream package repositories
                     default:  ${BASE_URL}
                     environment variable EPM_REPO_BASE overrides above
@@ -474,10 +472,18 @@ FLAGS:
             if [ -d "${pkg_dir}" ]; then
                 edo pushd "${pkg_dir}" >/dev/null
                 edo git fetch --all
-                edo git checkout -B "${BRANCH:-master}" -t origin/"${BRANCH:-master}"
+                if [ -z "${BRANCH}" ]; then
+                    edo git checkout -t $(git symbolic-ref refs/remotes/origin/HEAD)
+                else
+                    edo git checkout -B "${BRANCH}" -t origin/"${BRANCH}"
+                fi
                 edo popd >/dev/null
             else
-                edo git clone -b "${BRANCH:-master}" "${full_url}" "${pkg_dir}"
+                if [ -z "${BRANCH}" ]; then
+                    edo git clone "${full_url}" "${pkg_dir}"
+                else
+                    edo git clone -b "${BRANCH}" "${full_url}" "${pkg_dir}"
+                fi
             fi
         ) || die "Failed cloning ${full_url} to ${pkg_dir}"
 

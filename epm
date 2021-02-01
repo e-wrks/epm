@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-# safety subshell to avoid executing anything in case this script is not downloaded properly
-(
+# safety function to avoid executing anything in case this script is not downloaded properly
+function main() {
 
     ##########################
     #--[ Global Variables ]--#
@@ -1079,4 +1079,6 @@ update"
         esac
     done
 
-)
+}
+
+main "$@"

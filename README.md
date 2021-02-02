@@ -18,6 +18,7 @@ in the future, but stays merely the **epm**
 - [Prerequisite](#prerequisite)
   - [Operation System](#operation-system)
   - [UNIX Toolchain](#unix-toolchain)
+  - [Haskell Toolchain](#haskell-toolchain)
 - [Installation](#installation)
 - [Usage](#usage)
   - [Create a new EPM home](#create-a-new-epm-home)
@@ -36,20 +37,14 @@ in the future, but stays merely the **epm**
   On Windows<sup>TM</sup> ? 
   </summary>
 
-  Maybe try your luck with:
-
-  - [WSL](https://en.wikipedia.org/wiki/Windows_Subsystem_for_Linux)
-
-  But don't expect things would go smoothly if it works at all.
+  Consider run a **Linux** guest VM through **VMWare** or **VirtualBox**.
 
   </details>
 
 ### UNIX Toolchain
 
-> You may already have all of them if you are a software developer, otherwise:
-
 <details><summary>
-To manage Edh packages locally, you need
+ You may already have all of them if you are a software developer
 </summary>
 
 - [bash](https://www.gnu.org/software/bash/) - You already have it
@@ -76,8 +71,10 @@ To manage Edh packages locally, you need
 
 </details>
 
+### Haskell Toolchain
+
 <details><summary>
-To build Haskell executables from Edh packages, you need
+That is, GHC plus X
 </summary>
 
 - [GHC](https://haskell.org/ghc)
@@ -99,23 +96,18 @@ To build Haskell executables from Edh packages, you need
 ## Installation
 
 ```bash
-
 curl -o ~/.local/bin/epm -L https://github.com/e-wrks/epm/raw/latest/epm
 
 chmod a+x ~/.local/bin/epm
-
 ```
 
 <details><summary>
-
-```bash
-$ epm --help
-```
-
+Check it installed correctly
 </summary>
 
 ```console
-epm 0.1.7 >> Edh Package Manager <<
+$ epm --help
+epm 0.2.7 >> Edh Package Manager <<
 
 USAGE:
     epm [FLAGS] <SUBCOMMAND>

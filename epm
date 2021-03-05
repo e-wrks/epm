@@ -255,7 +255,6 @@ SUBCOMMANDS:
     install     | i    Install new, or change branches of existing packages 
     list        | l    List homes and packages
     update | up | u    Pull upstream changes of packages from tracked branches
-    with        | w    Run command within the directory of a package
     run | exec  | x    Run command with all effective EPM home's bin on \$PATH
     rm                 Remove specified package(s) from nearest EPM home
 ")
@@ -318,28 +317,6 @@ ARGS:
 EXAMPLES:
     epm install -b 0.3 edh -b 0.1 nedh \\
      -B https://git.corporate.lan -b golden esb/cord -b qa esb/mart
-")
-        exit 1
-    }
-
-    # @FUNCTION: with_usage
-    # @DESCRIPTION:
-    # Print the help message for 'epm with' to STDERR
-    # and exit the script with status code 1.
-    with_usage() {
-        (echo >&2 "epm-with
-Run command within the directory of a package
-
-USAGE:
-    ${SCRIPT} with [FLAGS] <PKG> [ <CMD> [ <ARGn> ... ] ]
-
-FLAGS:
-    -h, --help              Prints help information
-
-ARGS:
-    <PKG>                   E.g. \"nedh\" or \"sedh\"
-    <CMD> [ <ARGn> ... ]    E.g. \"git reset --hard\" or \"git diff\"
-                              default: bash
 ")
         exit 1
     }
@@ -575,49 +552,6 @@ FLAGS:
                     ) || die "Failed browsing package ${pkg_id}"
                 done
         done
-    ); }
-
-    #########################
-    #--[ Subcommand with ]--#
-    #########################
-
-    # Run command in a package's directory
-    with_pkg() { (
-        pkg="$1"
-        shift 1
-        IFS=: ps=(${EPM_PATH})
-        for p in ${ps[@]}; do
-            EPM_HOME=${p%%/edh-universe/bin}
-            cd "${EPM_HOME}"
-            pkg_dir=$(
-                find edh-universe -name edh_modules |
-                    fgrep -v '/dist-newstyle/' | fgrep -v '/.stack-work/' |
-                    while read -r pkg_dir1; do
-                        pkg_dir="${pkg_dir1%/edh_modules}"
-                        pkg_id="${pkg_dir#edh-universe/}"
-                        [ "${pkg_id%/${pkg}}" != "${pkg_id}" ] && echo "${pkg_dir}"
-                    done
-            )
-            if [ -d "${pkg_dir}" ]; then
-                if [ "$1" == "cabal" -a "$2" == "install" ]; then
-                    shift 2
-                    # implant `--overwrite-policy=always --installdir=${EPM_HOME}/edh-universe/bin`
-                    # to `cabal install` cmdl, magically !
-                    set -- cabal install --overwrite-policy=always --installdir=${EPM_HOME}/edh-universe/bin "$@"
-                elif [ $# -lt 1 ]; then
-                    set -- bash
-                fi
-
-                pkg_id="${pkg_dir#edh-universe/}"
-                status_message " >> With Edh package [${pkg_id}] in EPM home [${EPM_HOME}] <<"
-                edo pushd "${pkg_dir}" >/dev/null
-                export PATH="${EPM_PATH}":"${PATH}"
-                exec "$@"
-                edo popd >/dev/null
-                red_message "You've been kicked back."
-            fi
-        done
-        warning_message "No such package [${pkg}] in any effective EPM home"
     ); }
 
     #########################
@@ -1018,17 +952,6 @@ update"
                     esac
                 done
                 list_pkgs
-                break
-                ;;
-            with | w)
-                shift 1
-                [ $# -lt 1 ] && with_usage
-                MODIFYING_EPM_HOME=true
-                locate_epm_home || die "No workable EPM home"
-                case $1 in
-                -h | --help) with_usage ;;
-                esac
-                with_pkg "$@"
                 break
                 ;;
             run | exec | x)

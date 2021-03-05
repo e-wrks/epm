@@ -210,8 +210,6 @@ function main() {
     CREATING_EPM_HOME=false
     # whether we tend to modify an EPM home
     MODIFYING_EPM_HOME=false
-    # whether build Haskell source by EPM
-    EPM_BUILD_HS=false
 
     # @VARIABLE: VERBOSE
     # @DESCRIPTION:
@@ -227,6 +225,7 @@ function main() {
     SHOW_REPO=false
     SHOW_BRANCH=false
     SHOW_MODULES=false
+    SHOW_HS_PKGS=false
 
     ####################
     #--[ Print Help ]--#
@@ -377,6 +376,7 @@ FLAGS:
     -u, --upstream         Show repository URL
     -b, --branch           Show branches
     -m, --modules          List Edh modules
+    -H, --haskell          List Haskell packages
 ")
         exit 1
     }
@@ -500,13 +500,6 @@ FLAGS:
             edo popd >/dev/null
         ) || die "Failed linking Python module artifacts"
 
-        ${EPM_BUILD_HS} && ( (
-            edo pushd "${pkg_dir}" >/dev/null
-            status_message "Building Haskell components for ${pkg_id} ..."
-            edo cabal build all
-            edo popd >/dev/null
-        ) || red_message "Failed building Haskell components for ${pkg_id}")
-
         status_message "Installed $1 ."
 
         unset full_url pkg_id pkg_dir a b
@@ -533,14 +526,18 @@ FLAGS:
                     pkg_id="${pkg_dir#edh-universe/}"
                     (
                         edo pushd "${pkg_dir}" >/dev/null
-                        echo "${pkg_id} - $(git describe --all --dirty --broken)"
-                        if ${SHOW_REPO}; then
-                            echo " - From: $(
-                                git config remote.$(git config branch.$(git branch --format '%(refname:short)').remote).url
-                            )"
-                        fi
-                        if ${SHOW_BRANCH}; then
-                            echo " - Branch: $(edo git branch -vv)"
+                        if [ -d .git ]; then
+                            echo "${pkg_id} - $(git describe --all --dirty --broken)"
+                            if ${SHOW_REPO}; then
+                                echo " - From: $(
+                                    git config "remote.$(git config branch.$(git rev-parse --abbrev-ref HEAD).remote).url"
+                                )"
+                            fi
+                            if ${SHOW_BRANCH}; then
+                                echo " - Branch: $(edo git branch -vv)"
+                            fi
+                        else
+                            echo "${pkg_id} - <no git>"
                         fi
                         if ${SHOW_MODULES}; then
                             echo " - Modules:"
@@ -551,6 +548,30 @@ FLAGS:
                         edo popd >/dev/null
                     ) || die "Failed browsing package ${pkg_id}"
                 done
+            if ${SHOW_HS_PKGS}; then
+                echo ""
+                echo " * Haskell packages:"
+                echo ""
+                find edh-universe -name '*.cabal' |
+                    fgrep -v '/dist-newstyle/' | fgrep -v '/.stack-work/' |
+                    while read -r cabal_file; do
+                        pkg_id="${cabal_file#edh-universe/}"
+                        pkg_dir=$(dirname "${cabal_file}")
+                        (
+                            edo pushd "${pkg_dir}" >/dev/null
+                            echo "${pkg_id} - $(git describe --all --dirty --broken)"
+                            if ${SHOW_REPO}; then
+                                echo " - From: $(
+                                    git config "remote.$(git config branch.$(git rev-parse --abbrev-ref HEAD).remote).url"
+                                )"
+                            fi
+                            if ${SHOW_BRANCH}; then
+                                echo " - Branch: $(edo git branch -vv)"
+                            fi
+                            edo popd >/dev/null
+                        ) || die "Failed browsing package ${pkg_id}"
+                    done
+            fi
         done
     ); }
 
@@ -598,21 +619,28 @@ FLAGS:
     # Update local packages installed by epm
     update_pkgs() { (
         cd "${EPM_HOME}"
+
+        find edh-universe -type d -name .git |
+            fgrep -v '/dist-newstyle/' | fgrep -v '/.stack-work/' |
+            while read -r git_dir; do
+                repo_dir=$(dirname "${git_dir}")
+                (
+                    edo pushd "${repo_dir}" >/dev/null
+                    status_message "Updating repository ${repo_dir}"
+                    if [ -n "$(git config branch.$(git name-rev --name-only HEAD).merge)" ]; then
+                        git pull
+                    fi
+                    edo popd >/dev/null
+                ) || die "Failed updating repository ${repo_dir}"
+            done
+
         find edh-universe -name edh_modules |
             fgrep -v '/dist-newstyle/' | fgrep -v '/.stack-work/' |
             while read -r pkg_dir1; do
                 pkg_dir="${pkg_dir1%/edh_modules}"
                 pkg_id="${pkg_dir#edh-universe/}"
 
-                status_message "Updating ${pkg_id}"
-
-                (
-                    edo pushd "${pkg_dir}" >/dev/null
-                    if [ -n "$(git config branch.$(git name-rev --name-only HEAD).merge)" ]; then
-                        git pull
-                    fi
-                    edo popd >/dev/null
-                ) || die "Failed updating package ${pkg_id}"
+                status_message "Updating package ${pkg_id}"
 
                 (
                     find edh-universe/bin -type l | while read -r script_art; do
@@ -671,12 +699,6 @@ FLAGS:
                     edo popd >/dev/null
                 ) || die "Failed re-linking Python module artifacts"
 
-                ${EPM_BUILD_HS} && ( (
-                    edo pushd "${pkg_dir}" >/dev/null
-                    status_message "Building Haskell components for ${pkg_id} ..."
-                    edo cabal build all
-                    edo popd >/dev/null
-                ) || red_message "Failed building Haskell components for ${pkg_id}")
             done
     ); }
 
@@ -783,7 +805,7 @@ FLAGS:
     # @DESCRIPTION:
     # Print a green status message.
     status_message() {
-        printf >&2 ' \u2139\uFE0F %s\n' "$1"
+        printf >&2 ' \u2139\uFE0F  %s\n' "$1"
     }
 
     # @FUNCTION: warning_message
@@ -891,10 +913,18 @@ FLAGS:
             shift 2
             ;;
         --list-commands)
-            echo "install
+            echo "exec
+            
+i
+install
+l
 list
 rm
-update"
+run
+u
+up
+update
+x"
             exit 0
             ;;
         -h | --help)
@@ -946,6 +976,10 @@ update"
                         ;;
                     -m | --modules)
                         SHOW_MODULES=true
+                        shift 1
+                        ;;
+                    -H | --haskell)
+                        SHOW_HS_PKGS=true
                         shift 1
                         ;;
                     *) list_usage ;;

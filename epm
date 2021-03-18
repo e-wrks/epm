@@ -10,7 +10,7 @@ function main() {
     # @VARIABLE: VERSION
     # @DESCRIPTION:
     # Version of this script.
-    VERSION=0.2.8
+    VERSION=0.2.9
 
     # Default base URL for short package names
     BASE_URL=${EPM_REPO_BASE:-"https://github.com/e-wrks"}
@@ -441,6 +441,7 @@ FLAGS:
         else
             full_url="$1"
         fi
+        full_url=${full_url%%.git}
         pkg_id=${full_url#*://*/}
         pkg_dir=edh-universe/"${pkg_id}"
 

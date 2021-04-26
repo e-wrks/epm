@@ -10,7 +10,7 @@ function main() {
     # @VARIABLE: VERSION
     # @DESCRIPTION:
     # Version of this script.
-    VERSION=0.2.10
+    VERSION=0.2.11
 
     # Default base URL for short package names
     BASE_URL=${EPM_REPO_BASE:-"https://github.com/e-wrks"}
@@ -528,6 +528,7 @@ FLAGS:
                     (
                         edo pushd "${pkg_dir}" >/dev/null
                         if [ -d .git ]; then
+                            git update-index --refresh
                             echo "${pkg_id} - $(git describe --all --dirty --broken)"
                             if ${SHOW_REPO}; then
                                 echo " - From: $(
@@ -560,6 +561,7 @@ FLAGS:
                         pkg_dir=$(dirname "${cabal_file}")
                         (
                             edo pushd "${pkg_dir}" >/dev/null
+                            git update-index --refresh
                             echo "${pkg_id} - $(git describe --all --dirty --broken)"
                             if ${SHOW_REPO}; then
                                 echo " - From: $(

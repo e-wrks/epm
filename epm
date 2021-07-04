@@ -10,7 +10,7 @@ function main() {
     # @VARIABLE: VERSION
     # @DESCRIPTION:
     # Version of this script.
-    VERSION=0.3.0
+    VERSION=0.3.1
 
     # Default base URL for short package names
     BASE_URL=${EPM_REPO_BASE:-"https://github.com/e-wrks"}
@@ -336,7 +336,7 @@ FLAGS:
     -h, --help              Prints help information
 
 ARGS:
-    <CMD> [ <ARGn> ... ]    E.g. \"edhi\" or \"cabal install all:exes\"
+    <CMD> [ <ARGn> ... ]    E.g. \"edhm\" or \"stack run hski\"
 ")
         exit 1
     }
@@ -955,17 +955,12 @@ FLAGS:
             ;;
         --list-commands)
             echo "exec
-            
-i
+init
 install
-l
 list
 rm
 run
-u
-up
-update
-x"
+update"
             exit 0
             ;;
         -h | --help)

@@ -10,7 +10,7 @@ function main() {
     # @VARIABLE: VERSION
     # @DESCRIPTION:
     # Version of this script.
-    VERSION=0.3.1
+    VERSION=0.3.2
 
     # Default base URL for short package names
     BASE_URL=${EPM_REPO_BASE:-"https://github.com/e-wrks"}
@@ -92,7 +92,7 @@ function main() {
             while read -r fn; do
                 relfn=${fn#./}
                 shadowed=0
-                for dhome in "${DESCENDANT_HOMES}"; do
+                for dhome in ${DESCENDANT_HOMES}; do
                     [ -e "${dhome}"/edh-universe/"${relfn}" ] && shadowed=1
                 done
                 if [ "${shadowed}" == "0" ]; then
@@ -107,7 +107,7 @@ function main() {
             while read -r fn; do
                 relfn=${fn#./}
                 shadowed=0
-                for dhome in "${DESCENDANT_HOMES}"; do
+                for dhome in ${DESCENDANT_HOMES}; do
                     [ -e "${dhome}"/edh-universe/"${relfn}" ] && shadowed=1
                 done
                 if [ "${shadowed}" == "0" ]; then
@@ -142,20 +142,19 @@ function main() {
                 export DESCENDANT_HOMES=''
                 export rel_univ='.'
                 add_cabal_packages
-                export RELPART='..'
                 export DESCENDANT_HOMES="${EPM_HOME}"
                 process_parent_homes_from() { (
                     parent_dir=$(dirname "$1")
                     if [ "${parent_dir}" == "$1" ]; then
                         return 0
                     fi
-                    rel_univ="${RELPART}"/edh-universe
+                    rel_univ="${parent_dir}"/edh-universe
                     if [ -x "${rel_univ}" ]; then
                         cd "${rel_univ}"
                         EPM_HOME="${parent_dir}" add_cabal_packages
                         export DESCENDANT_HOMES="${DESCENDANT_HOMES} ${parent_dir}"
                     fi
-                    RELPART="${RELPART}/.." process_parent_homes_from "${parent_dir}"
+                    process_parent_homes_from "${parent_dir}"
                 ); }
                 process_parent_homes_from "${EPM_HOME}"
             ) >"_new_cabal.project"
@@ -186,20 +185,19 @@ function main() {
                 export DESCENDANT_HOMES=''
                 export rel_univ='.'
                 add_stack_packages
-                export RELPART='..'
                 export DESCENDANT_HOMES="${EPM_HOME}"
                 process_parent_homes_from() { (
                     parent_dir=$(dirname "$1")
                     if [ "${parent_dir}" == "$1" ]; then
                         return 0
                     fi
-                    rel_univ="${RELPART}"/edh-universe
+                    rel_univ="${parent_dir}"/edh-universe
                     if [ -x "${rel_univ}" ]; then
                         cd "${rel_univ}"
                         EPM_HOME="${parent_dir}" add_stack_packages
                         export DESCENDANT_HOMES="${DESCENDANT_HOMES} ${parent_dir}"
                     fi
-                    RELPART="${RELPART}/.." process_parent_homes_from "${parent_dir}"
+                    process_parent_homes_from "${parent_dir}"
                 ); }
                 process_parent_homes_from "${EPM_HOME}"
             ) >"_new_stack.yaml"

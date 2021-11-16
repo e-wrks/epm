@@ -10,7 +10,7 @@ function main() {
     # @VARIABLE: VERSION
     # @DESCRIPTION:
     # Version of this script.
-    VERSION=0.3.2
+    VERSION=0.3.3
 
     # Default base URL for short package names
     BASE_URL=${EPM_REPO_BASE:-"https://github.com/e-wrks"}
@@ -220,11 +220,14 @@ function main() {
     # Whether to force installation and overwrite files.
     FORCE=false
 
-    # options in listing subcommand
+    # options in list subcommand
     SHOW_REPO=false
     SHOW_BRANCH=false
     SHOW_MODULES=false
     SHOW_HS_PKGS=false
+
+    # options in update subcommand
+    PULL_UPSTREAM=true
 
     ####################
     #--[ Print Help ]--#
@@ -393,6 +396,7 @@ USAGE:
 
 FLAGS:
     -h, --help             Prints help information
+    -e, --edit             Only per local edit, i.e. no pull from upstream
 ")
         exit 1
     }
@@ -634,19 +638,21 @@ FLAGS:
     update_pkgs() { (
         cd "${EPM_HOME}"
 
-        find edh-universe -type d -name .git |
-            fgrep -v '/dist-newstyle/' | fgrep -v '/.stack-work/' |
-            while read -r git_dir; do
-                repo_dir=$(dirname "${git_dir}")
-                (
-                    edo pushd "${repo_dir}" >/dev/null
-                    status_message "Updating repository ${repo_dir}"
-                    if [ -n "$(git config branch.$(git rev-parse --abbrev-ref HEAD).merge)" ]; then
-                        git pull
-                    fi
-                    edo popd >/dev/null
-                ) || die "Failed updating repository ${repo_dir}"
-            done
+        if ${PULL_UPSTREAM}; then
+            find edh-universe -type d -name .git |
+                fgrep -v '/dist-newstyle/' | fgrep -v '/.stack-work/' |
+                while read -r git_dir; do
+                    repo_dir=$(dirname "${git_dir}")
+                    (
+                        edo pushd "${repo_dir}" >/dev/null
+                        status_message "Updating repository ${repo_dir}"
+                        if [ -n "$(git config branch.$(git rev-parse --abbrev-ref HEAD).merge)" ]; then
+                            git pull
+                        fi
+                        edo popd >/dev/null
+                    ) || die "Failed updating repository ${repo_dir}"
+                done
+        fi
 
         find edh-universe -name edh_modules |
             fgrep -v '/dist-newstyle/' | fgrep -v '/.stack-work/' |
@@ -1034,8 +1040,17 @@ update"
                 ;;
             update | up | u)
                 shift 1
-                [ $# -gt 0 ] && update_usage
                 MODIFYING_EPM_HOME=true
+                while [ $# -gt 0 ]; do
+                    case $1 in
+                    -h | --help) update_usage ;;
+                    -e | --edit)
+                        PULL_UPSTREAM=false
+                        shift 1
+                        ;;
+                    *) update_usage ;;
+                    esac
+                done
                 locate_epm_home || die "No modifiable EPM home to update"
                 cd "${EPM_HOME}"
                 update_pkgs

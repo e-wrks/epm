@@ -10,7 +10,7 @@ function main() {
     # @VARIABLE: VERSION
     # @DESCRIPTION:
     # Version of this script.
-    VERSION=0.3.3
+    VERSION=0.3.4
 
     # Default base URL for short package names
     BASE_URL=${EPM_REPO_BASE:-"https://github.com/e-wrks"}
@@ -445,7 +445,11 @@ FLAGS:
             full_url="$1"
         fi
         full_url=${full_url%%.git}
-        pkg_id=${full_url#*://*/}
+        if [ "${full_url#*://}" == "${full_url}" ]; then
+            pkg_id="${1%%.git}"
+        else
+            pkg_id=${full_url#*://*/}
+        fi
         pkg_dir=edh-universe/"${pkg_id}"
 
         status_message "Installing $1 to ${pkg_dir} ..."

@@ -10,7 +10,7 @@ function main() {
     # @VARIABLE: VERSION
     # @DESCRIPTION:
     # Version of this script.
-    VERSION=0.3.4
+    VERSION=0.3.5
 
     # Default base URL for short package names
     BASE_URL=${EPM_REPO_BASE:-"https://github.com/e-wrks"}
@@ -87,7 +87,7 @@ function main() {
     }
 
     add_cabal_packages() { (
-        find . -name \*.cabal |
+        find -L . -name \*.cabal |
             fgrep -v '/dist-newstyle/' | fgrep -v '/.stack-work/' |
             while read -r fn; do
                 relfn=${fn#./}
@@ -102,7 +102,7 @@ function main() {
     ); }
 
     add_stack_packages() { (
-        find . -name \*.cabal |
+        find -L . -name \*.cabal |
             fgrep -v '/dist-newstyle/' | fgrep -v '/.stack-work/' |
             while read -r fn; do
                 relfn=${fn#./}
@@ -539,7 +539,7 @@ FLAGS:
             EPM_HOME=${p%%/edh-universe/bin}
             status_message "  > EPM home at [${EPM_HOME}] <"
             cd "${EPM_HOME}"
-            find edh-universe -name edh_modules |
+            find -L edh-universe -name edh_modules |
                 fgrep -v '/dist-newstyle/' | fgrep -v '/.stack-work/' |
                 while read -r pkg_dir1; do
                     pkg_dir="${pkg_dir1%/edh_modules}"
@@ -562,7 +562,7 @@ FLAGS:
                         fi
                         if ${SHOW_MODULES}; then
                             echo " - Modules:"
-                            find edh_modules -type f | while read -r modu; do
+                            find -L edh_modules -type f | while read -r modu; do
                                 echo "    ${modu}"
                             done
                         fi
@@ -573,7 +573,7 @@ FLAGS:
                 echo ""
                 echo " * Haskell packages:"
                 echo ""
-                find edh-universe -name '*.cabal' |
+                find -L edh-universe -name '*.cabal' |
                     fgrep -v '/dist-newstyle/' | fgrep -v '/.stack-work/' |
                     while read -r cabal_file; do
                         pkg_id="${cabal_file#edh-universe/}"
@@ -643,7 +643,7 @@ FLAGS:
         cd "${EPM_HOME}"
 
         if ${PULL_UPSTREAM}; then
-            find edh-universe -type d -name .git |
+            find -L edh-universe -type d -name .git |
                 fgrep -v '/dist-newstyle/' | fgrep -v '/.stack-work/' |
                 while read -r git_dir; do
                     repo_dir=$(dirname "${git_dir}")
@@ -658,7 +658,7 @@ FLAGS:
                 done
         fi
 
-        find edh-universe -name edh_modules |
+        find -L edh-universe -name edh_modules |
             fgrep -v '/dist-newstyle/' | fgrep -v '/.stack-work/' |
             while read -r pkg_dir1; do
                 pkg_dir="${pkg_dir1%/edh_modules}"
@@ -755,7 +755,7 @@ FLAGS:
     # Removes the specified package(s) installed by epm.
     rm_pkgs() { (
         cd "${EPM_HOME}"
-        find edh-universe -name edh_modules |
+        find -L edh-universe -name edh_modules |
             fgrep -v '/dist-newstyle/' | fgrep -v '/.stack-work/' |
             while read -r pkg_dir1; do
                 pkg_dir="${pkg_dir1%/edh_modules}"

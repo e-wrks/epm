@@ -10,7 +10,7 @@ function main() {
     # @VARIABLE: VERSION
     # @DESCRIPTION:
     # Version of this script.
-    VERSION=0.3.7
+    VERSION=0.3.8
 
     # Default base URL for short package names
     BASE_URL=${EPM_REPO_BASE:-"https://github.com/e-wrks"}
@@ -105,13 +105,16 @@ function main() {
         find -L . -name \*.cabal -o -name package.yaml |
             fgrep -v '/dist-newstyle/' | fgrep -v '/.stack-work/' |
             while read -r fn; do
+                pkg_dir="$(dirname "${fn}")"
+                if [[ "$fn" =~ package\.yaml$ ]] && [ -e "${pkg_dir}"/*.cabal ]; then
+                    continue # should have been added due to the .cabal file
+                fi
                 relfn=${fn#./}
                 shadowed=0
                 for dhome in ${DESCENDANT_HOMES}; do
                     [ -e "${dhome}"/edh-universe/"${relfn}" ] && shadowed=1
                 done
                 if [ "${shadowed}" == "0" ]; then
-                    pkg_dir="$(dirname "${fn}")"
                     echo " - ${rel_univ}/${pkg_dir#./}"
                 fi
             done
@@ -578,6 +581,9 @@ FLAGS:
                     while read -r cabal_file; do
                         pkg_id="${cabal_file#edh-universe/}"
                         pkg_dir=$(dirname "${cabal_file}")
+                        if [[ "$fn" =~ package\.yaml$ ]] && [ -e "${pkg_dir}"/*.cabal ]; then
+                            continue # should have been displayed due to the .cabal file
+                        fi
                         (
                             edo pushd "${pkg_dir}" >/dev/null
                             git update-index --refresh

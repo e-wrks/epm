@@ -10,7 +10,7 @@ function main() {
     # @VARIABLE: VERSION
     # @DESCRIPTION:
     # Version of this script.
-    VERSION=0.3.6
+    VERSION=0.3.7
 
     # Default base URL for short package names
     BASE_URL=${EPM_REPO_BASE:-"https://github.com/e-wrks"}
@@ -102,7 +102,7 @@ function main() {
     ); }
 
     add_stack_packages() { (
-        find -L . -name \*.cabal |
+        find -L . -name \*.cabal -o -name package.yaml |
             fgrep -v '/dist-newstyle/' | fgrep -v '/.stack-work/' |
             while read -r fn; do
                 relfn=${fn#./}
@@ -573,7 +573,7 @@ FLAGS:
                 echo ""
                 echo " * Haskell packages:"
                 echo ""
-                find -L edh-universe -name '*.cabal' |
+                find -L edh-universe -name '*.cabal' -o -name 'package.yaml' |
                     fgrep -v '/dist-newstyle/' | fgrep -v '/.stack-work/' |
                     while read -r cabal_file; do
                         pkg_id="${cabal_file#edh-universe/}"

@@ -860,7 +860,7 @@ FLAGS:
     # @DESCRIPTION:
     # Print a green status message.
     status_message() {
-        printf >&2 ' \u2139\uFE0F  %s\n' "$1"
+        printf >&2 ' ℹ️  %s\n' "$1"
     }
 
     # @FUNCTION: warning_message
@@ -868,7 +868,7 @@ FLAGS:
     # @DESCRIPTION:
     # Print a yellow warning message.
     warning_message() {
-        printf >&2 ' \u26A0\uFE0F  %s\n' "$1"
+        printf >&2 ' ⚠️  %s\n' "$1"
     }
 
     # @FUNCTION: red_message
